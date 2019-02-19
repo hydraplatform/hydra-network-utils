@@ -3,6 +3,11 @@ import os
 from hydra_client.connection import JSONConnection
 from hydra_client.click import hydra_app, make_plugins, write_plugins
 import json
+from collections import defaultdict
+import pandas
+import re
+from .gis import import_nodes_from_shapefile, import_links_from_shapefile
+from .data import import_dataframe, export_dataframes
 
 
 def get_client(hostname, **kwargs):
@@ -48,8 +53,6 @@ def cli(obj, username, password, hostname, session):
 def import_links(obj, filename, network_id, user_id, node_template_type_id,
                      link_template_type_id, node_merge_distance):
 
-    from .gis import import_links_from_shapefile
-
     client = get_logged_in_client(obj, user_id=user_id)
 
     import_links_from_shapefile(client, filename, network_id, node_template_type_id,
@@ -66,11 +69,8 @@ def import_links(obj, filename, network_id, user_id, node_template_type_id,
 @click.option('-u', '--user-id', type=int, default=None)
 def import_nodes(obj, filename, network_id, user_id, node_template_type_id, node_name_attribute):
 
-    from .gis import import_nodes_from_shapefile
-
     client = get_logged_in_client(obj, user_id=user_id)
 
-    print(node_name_attribute)
     nodes, projection = import_nodes_from_shapefile(filename, node_template_type_id,
                                                     name_attributes=node_name_attribute)
 
@@ -89,7 +89,6 @@ def import_nodes(obj, filename, network_id, user_id, node_template_type_id, node
 @click.option('--network-template-type-id', type=int, default=None)
 def import_network(obj, filename, project_id, name, user_id, node_template_type_id,
                    network_template_type_id, node_name_attribute):
-    from .gis import import_nodes_from_shapefile
     client = get_logged_in_client(obj, user_id=user_id)
 
     nodes, projection = import_nodes_from_shapefile(filename, node_template_type_id,
@@ -158,6 +157,74 @@ def apply_layouts(obj, filename, network_id, user_id):
         # TODO Missing `update_links` function in hydra-base: https://github.com/hydraplatform/hydra-base/issues/66
         for link_layout in link_layouts:
             client.update_link(link_layout)
+
+
+@hydra_app(category='network-util')
+@cli.command(name='import-dataframe-excel')
+@click.pass_obj
+@click.argument('filename', type=click.Path(file_okay=True, dir_okay=False))
+@click.argument('column', type=str)
+@click.option('--sheet-name', type=str, default=None)
+@click.option('--index-col', type=str, default=None)
+@click.option('--create-new/--no-create-new', default=False)
+@click.option('-n', '--network-id', type=int, default=None)
+@click.option('-s', '--scenario-id', type=int, default=None)
+@click.option('-a', '--attribute-id', type=int, default=None)
+@click.option('-u', '--user-id', type=int, default=None)
+def import_dataframe_excel(obj, filename, column, sheet_name, index_col, create_new,
+                           network_id, scenario_id, attribute_id, user_id):
+    client = get_logged_in_client(obj, user_id=user_id)
+    dataframe = pandas.read_excel(filename, sheetname=sheet_name, index_col=index_col)
+    import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new)
+
+
+@hydra_app(category='network-util')
+@cli.command(name='import-dataframe-csv')
+@click.pass_obj
+@click.argument('filename', type=click.Path(file_okay=True, dir_okay=False))
+@click.argument('column', type=str)
+@click.option('--index-col', type=str, default=None)
+@click.option('--create-new/--no-create-new', default=False)
+@click.option('-n', '--network-id', type=int, default=None)
+@click.option('-s', '--scenario-id', type=int, default=None)
+@click.option('-a', '--attribute-id', type=int, default=None)
+@click.option('-u', '--user-id', type=int, default=None)
+def import_dataframe_csv(obj, filename, column, index_col, create_new,
+                         network_id, scenario_id, attribute_id, user_id):
+    client = get_logged_in_client(obj, user_id=user_id)
+    dataframe = pandas.read_csv(filename, index_col=index_col)
+    import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new)
+
+
+@hydra_app(category='network-util')
+@cli.command(name='export-dataframes')
+@click.pass_obj
+@click.option('-n', '--network-id', type=int, default=None)
+@click.option('-s', '--scenario-id', type=int, default=None)
+@click.option('-a', '--attribute-id', type=int, default=None)
+@click.option('-u', '--user-id', type=int, default=None)
+@click.option('--data-dir', default='/tmp')
+def export_dataframes_excel(obj, network_id, scenario_id, attribute_id, user_id, data_dir):
+
+    client = get_logged_in_client(obj, user_id=user_id)
+
+    attribute_ids = None
+    if attribute_id is not None:
+        attribute_ids = [attribute_id]
+
+    dataframes = defaultdict(dict)
+    for node_name, attr_name, df in export_dataframes(client, network_id, scenario_id, attribute_ids=attribute_ids):
+        dataframes[attr_name][node_name] = df
+
+    # TODO make the filename configurable or based on the network name
+    fn = os.path.join(data_dir, 'export.xlsx')
+    writer = pandas.ExcelWriter(fn)
+    for key, dfs in dataframes.items():
+        df = pandas.concat(dfs, axis=1)
+        # replace non-alphanumeric characters with underscore
+        sheet_name = re.sub('[^0-9a-zA-Z|+\-@#$^()_,.!]+', '_', key)
+        df.to_excel(writer, sheet_name=sheet_name)
+    writer.save()
 
 
 @cli.command()
