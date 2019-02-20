@@ -1,5 +1,6 @@
 import click
 import os
+from hydra_base import config
 from hydra_client.connection import JSONConnection
 from hydra_client.click import hydra_app, make_plugins, write_plugins
 import json
@@ -9,6 +10,7 @@ import re
 from .gis import import_nodes_from_shapefile, import_links_from_shapefile
 from .data import import_dataframe, export_dataframes
 
+UPLOAD_DIR = config.get('plugin', 'upload_dir', '/tmp/uploads')
 
 def get_client(hostname, **kwargs):
     return JSONConnection(app_name='Pywr GIS App', db_url=hostname, **kwargs)
@@ -123,8 +125,11 @@ def apply_layouts(obj, filename, network_id, user_id):
 
     client = get_logged_in_client(obj, user_id=user_id)
 
+    filename = os.path.basename(filename)
+    fn = os.path.join(UPLOAD_DIR, filename)
+
     # Open the layouts
-    with open(filename) as fh:
+    with open(fn) as fh:
         layouts = json.load(fh)
 
     nodes = client.get_nodes(network_id)
