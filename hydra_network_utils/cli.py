@@ -44,7 +44,7 @@ def cli(obj, username, password, hostname, session):
 @hydra_app(category='network-util')
 @cli.command(name='import-links')
 @click.pass_obj
-@click.argument('filename', type=click.Path(file_okay=True, dir_okay=False))
+@click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('-n', '--network-id', type=int, default=None)
 @click.option('--node-template-type-id', type=int, default=None)
 @click.option('--link-template-type-id', type=int, default=None)
@@ -62,7 +62,7 @@ def import_links(obj, filename, network_id, user_id, node_template_type_id,
 @hydra_app(category='network-util')
 @cli.command(name='import-nodes')
 @click.pass_obj
-@click.argument('filename', type=click.Path(file_okay=True, dir_okay=False))
+@click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('-n', '--network-id', type=int, default=None)
 @click.option('-a', '--node-name-attribute', type=str, default=None, multiple=True)
 @click.option('--node-template-type-id', type=int, default=None)
@@ -80,8 +80,8 @@ def import_nodes(obj, filename, network_id, user_id, node_template_type_id, node
 @hydra_app(category='import')
 @cli.command(name='create-network')
 @click.pass_obj
-@click.argument('filename', type=click.Path(file_okay=True, dir_okay=False))
-@click.argument('project_id', type=int)
+@click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
+@click.option('-p', '--project-id', type=int)
 @click.option('--name', type=str, default=None)
 @click.option('-u', '--user-id', type=int, default=None)
 @click.option('--node-name-attribute', type=str, default=None)
@@ -116,7 +116,7 @@ def import_network(obj, filename, project_id, name, user_id, node_template_type_
 @hydra_app(category='network-util')
 @cli.command(name='apply-layouts')
 @click.pass_obj
-@click.argument('filename', type=click.Path(file_okay=True, dir_okay=False))
+@click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('-n', '--network-id', type=int, default=None)
 @click.option('-u', '--user-id', type=int, default=None)
 def apply_layouts(obj, filename, network_id, user_id):
@@ -162,8 +162,8 @@ def apply_layouts(obj, filename, network_id, user_id):
 @hydra_app(category='network-util')
 @cli.command(name='import-dataframe-excel')
 @click.pass_obj
-@click.argument('filename', type=click.Path(file_okay=True, dir_okay=False))
-@click.argument('column', type=str)
+@click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
+@click.option('--column', type=str)
 @click.option('--sheet-name', type=str, default=None)
 @click.option('--index-col', type=str, default=None)
 @click.option('--create-new/--no-create-new', default=False)
@@ -181,8 +181,8 @@ def import_dataframe_excel(obj, filename, column, sheet_name, index_col, create_
 @hydra_app(category='network-util')
 @cli.command(name='import-dataframe-csv')
 @click.pass_obj
-@click.argument('filename', type=click.Path(file_okay=True, dir_okay=False))
-@click.argument('column', type=str)
+@click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
+@click.option('--column', type=str)
 @click.option('--index-col', type=str, default=None)
 @click.option('--create-new/--no-create-new', default=False)
 @click.option('-n', '--network-id', type=int, default=None)
@@ -197,7 +197,7 @@ def import_dataframe_csv(obj, filename, column, index_col, create_new,
 
 
 @hydra_app(category='network-util')
-@cli.command(name='export-dataframes')
+@cli.command(name='export-dataframes-excel')
 @click.pass_obj
 @click.option('-n', '--network-id', type=int, default=None)
 @click.option('-s', '--scenario-id', type=int, default=None)
