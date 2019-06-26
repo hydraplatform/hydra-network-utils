@@ -11,6 +11,7 @@ from .gis import import_nodes_from_shapefile, import_links_from_shapefile
 from .data import import_dataframe, export_dataframes
 
 UPLOAD_DIR = config.get('plugin', 'upload_dir', '/tmp/uploads')
+UPLOAD_DIR = config.get('plugin', 'output_dir', '/tmp/uploads')
 
 def get_client(hostname, **kwargs):
     return JSONConnection(app_name='Pywr GIS App', db_url=hostname, **kwargs)
@@ -43,7 +44,7 @@ def cli(obj, username, password, hostname, session):
     obj['session'] = session
 
 
-@hydra_app(category='network-util')
+@hydra_app(category='network_utility', name='Import links from GIS')
 @cli.command(name='import-links')
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
@@ -52,16 +53,21 @@ def cli(obj, username, password, hostname, session):
 @click.option('--link-template-type-id', type=int, default=None)
 @click.option('--node-merge-distance', type=float, default=None)
 @click.option('-u', '--user-id', type=int, default=None)
-def import_links(obj, filename, network_id, user_id, node_template_type_id,
-                     link_template_type_id, node_merge_distance):
+def import_links(obj, filename, network_id, user_id, node_template_type_id, link_template_type_id, node_merge_distance):
+    """Import nodes and links from a GIS file.
 
+    This app searches the GIS file for LINESTRING features. It extracts the first and last
+    coordinates for each feature. These coordinates are used to create new nodes at which
+    a new link is created for each feature. Nodes within the node merge distance are assumed
+    to be the same node and merged together.
+    """
     client = get_logged_in_client(obj, user_id=user_id)
 
     import_links_from_shapefile(client, filename, network_id, node_template_type_id,
                                 link_template_type_id, node_merge_distance=node_merge_distance)
 
 
-@hydra_app(category='network-util')
+@hydra_app(category='network_utility', name='Import nodes from GIS')
 @cli.command(name='import-nodes')
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
@@ -70,7 +76,12 @@ def import_links(obj, filename, network_id, user_id, node_template_type_id,
 @click.option('--node-template-type-id', type=int, default=None)
 @click.option('-u', '--user-id', type=int, default=None)
 def import_nodes(obj, filename, network_id, user_id, node_template_type_id, node_name_attribute):
+    """Import nodes from a GIS file.
 
+    This app searches a GIS file for POINT, POLYGON or MULTIPOLYGON features. It creates a new
+    node for each of these features. For polygon or multi-polygon features a representative
+    point is used for the coordinate of the node.
+    """
     client = get_logged_in_client(obj, user_id=user_id)
 
     nodes, projection = import_nodes_from_shapefile(filename, node_template_type_id,
@@ -79,7 +90,7 @@ def import_nodes(obj, filename, network_id, user_id, node_template_type_id, node
     client.add_nodes(network_id, nodes)
 
 
-@hydra_app(category='import')
+@hydra_app(category='import', name='Create network from GIS.')
 @cli.command(name='create-network')
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
@@ -91,6 +102,13 @@ def import_nodes(obj, filename, network_id, user_id, node_template_type_id, node
 @click.option('--network-template-type-id', type=int, default=None)
 def import_network(obj, filename, project_id, name, user_id, node_template_type_id,
                    network_template_type_id, node_name_attribute):
+    """Create a new network from a GIS file.
+
+    This app searches a GIS file for POINT, POLYGON or MULTIPOLYGON features. It creates a new
+    node for each of these features. For polygon or multi-polygon features a representative
+    point is used for the coordinate of the node. These nodes are added to a new network. The
+    app creates no links between the nodes.
+    """
     client = get_logged_in_client(obj, user_id=user_id)
 
     nodes, projection = import_nodes_from_shapefile(filename, node_template_type_id,
@@ -115,18 +133,19 @@ def import_network(obj, filename, project_id, name, user_id, node_template_type_
     client.add_network(network)
 
 
-@hydra_app(category='network-util')
+@hydra_app(category='network_utility', name='Apply layouts')
 @cli.command(name='apply-layouts')
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('-n', '--network-id', type=int, default=None)
 @click.option('-u', '--user-id', type=int, default=None)
 def apply_layouts(obj, filename, network_id, user_id):
-
+    """Apply layouts from JSON file to network."""
     client = get_logged_in_client(obj, user_id=user_id)
 
-    filename = os.path.basename(filename)
-    fn = os.path.join(UPLOAD_DIR, filename)
+    #filename = os.path.basename(filename)
+    #fn = os.path.join(UPLOAD_DIR, filename)
+    fn = filename
 
     # Open the layouts
     with open(fn) as fh:
@@ -164,7 +183,7 @@ def apply_layouts(obj, filename, network_id, user_id):
             client.update_link(link_layout)
 
 
-@hydra_app(category='network-util')
+@hydra_app(category='network_utility', name='Import dataframes from Excel')
 @cli.command(name='import-dataframe-excel')
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
@@ -178,12 +197,13 @@ def apply_layouts(obj, filename, network_id, user_id):
 @click.option('-u', '--user-id', type=int, default=None)
 def import_dataframe_excel(obj, filename, column, sheet_name, index_col, create_new,
                            network_id, scenario_id, attribute_id, user_id):
+    """Import dataframes from Excel."""
     client = get_logged_in_client(obj, user_id=user_id)
     dataframe = pandas.read_excel(filename, sheetname=sheet_name, index_col=index_col)
     import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new)
 
 
-@hydra_app(category='network-util')
+@hydra_app(category='network_utility', name='Import dataframes from CSV')
 @cli.command(name='import-dataframe-csv')
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
@@ -196,12 +216,13 @@ def import_dataframe_excel(obj, filename, column, sheet_name, index_col, create_
 @click.option('-u', '--user-id', type=int, default=None)
 def import_dataframe_csv(obj, filename, column, index_col, create_new,
                          network_id, scenario_id, attribute_id, user_id):
+    """Import dataframes from CSV."""
     client = get_logged_in_client(obj, user_id=user_id)
     dataframe = pandas.read_csv(filename, index_col=index_col)
     import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new)
 
 
-@hydra_app(category='network-util')
+@hydra_app(category='network_utility', name='Export dataframes to Excel')
 @cli.command(name='export-dataframes-excel')
 @click.pass_obj
 @click.option('-n', '--network-id', type=int, default=None)
@@ -210,7 +231,7 @@ def import_dataframe_csv(obj, filename, column, index_col, create_new,
 @click.option('-u', '--user-id', type=int, default=None)
 @click.option('--data-dir', default='/tmp')
 def export_dataframes_excel(obj, network_id, scenario_id, attribute_id, user_id, data_dir):
-
+    """Export dataframes to Excel."""
     client = get_logged_in_client(obj, user_id=user_id)
 
     attribute_ids = None

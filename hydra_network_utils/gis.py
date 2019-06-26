@@ -3,6 +3,7 @@ import os
 import math
 from shapely.geometry import Polygon, shape
 
+
 def nearby_node(nodes, coordinates, distance):
     """ Return a node that is within distance of coordinates. """
     x1, y1 = coordinates
