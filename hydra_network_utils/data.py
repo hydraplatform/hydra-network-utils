@@ -1,9 +1,30 @@
 import pandas
 from hydra_base.lib.objects import Dataset
+import json
+
+
+def make_dataframe_dataset_value(df, data_type):
+
+    if data_type.lower() == 'dataframe':
+        value = df.to_json(orient='columns')
+    elif data_type.lower() == 'pywr_dataframe':
+        value = df.to_json(orient='columns')
+
+        value = {
+            "type": "dataframeparameter",
+            "data": json.loads(value),
+            "pandas_kwargs": {"parse_dates": True}
+        }
+
+        value = json.dumps(value)
+    else:
+        raise NotImplementedError(f'Datatype "{data_type.upper()}" not supported.')
+
+    return value
 
 
 def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column,
-                     create_new=False):
+                     create_new=False, data_type='PYWR_DATAFRAME'):
 
     # Find all the nodes in the network
 
@@ -23,15 +44,15 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
 
             dataset = resource_scenario['dataset']
 
-            if dataset['type'].lower() != 'dataframe':
+            if dataset['type'].lower() != data_type.lower():
                 raise ValueError(f'Node "{node_name}" datatset for attribute_id "{attribute_id}" must be'
-                                 f' type "DATAFRAME", not type "{dataset["type"]}".')
+                                 f' type "{data_type.upper()}", not type "{dataset["type"]}".')
 
             existing_df = pandas.read_json(dataset['value'])
             # Update the dataframe
             existing_df[column] = dataframe[node_name]
             # .. and the dataset
-            dataset['value'] = existing_df.to_json(orient='columns')
+            dataset['value'] = make_dataframe_dataset_value(existing_df, data_type)
 
             node_data[node_name] = {
                 'node_id': node['id'],
@@ -53,9 +74,9 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
 
                 dataset = Dataset({
                     'name': "data",
-                    'value': df.to_json(orient='columns'),
+                    'value': make_dataframe_dataset_value(df, data_type),
                     "hidden": "N",
-                    "type": "DATAFRAME",
+                    "type": data_type.upper(),
                     "unit": "-",
                 })
 

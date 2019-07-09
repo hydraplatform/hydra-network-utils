@@ -190,17 +190,19 @@ def apply_layouts(obj, filename, network_id, user_id):
 @click.option('--column', type=str)
 @click.option('--sheet-name', type=str, default=None)
 @click.option('--index-col', type=str, default=None)
+@click.option('--data-type', type=str, default='PYWR_DATAFRAME')
 @click.option('--create-new/--no-create-new', default=False)
 @click.option('-n', '--network-id', type=int, default=None)
 @click.option('-s', '--scenario-id', type=int, default=None)
 @click.option('-a', '--attribute-id', type=int, default=None)
 @click.option('-u', '--user-id', type=int, default=None)
-def import_dataframe_excel(obj, filename, column, sheet_name, index_col, create_new,
+def import_dataframe_excel(obj, filename, column, sheet_name, index_col, data_type, create_new,
                            network_id, scenario_id, attribute_id, user_id):
     """Import dataframes from Excel."""
     client = get_logged_in_client(obj, user_id=user_id)
     dataframe = pandas.read_excel(filename, sheet_name=sheet_name, index_col=index_col)
-    import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new)
+    import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new,
+                     data_type=data_type)
 
 
 @hydra_app(category='network_utility', name='Import dataframes from CSV')
