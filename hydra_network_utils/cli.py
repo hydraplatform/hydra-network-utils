@@ -199,7 +199,7 @@ def import_dataframe_excel(obj, filename, column, sheet_name, index_col, create_
                            network_id, scenario_id, attribute_id, user_id):
     """Import dataframes from Excel."""
     client = get_logged_in_client(obj, user_id=user_id)
-    dataframe = pandas.read_excel(filename, sheetname=sheet_name, index_col=index_col)
+    dataframe = pandas.read_excel(filename, sheet_name=sheet_name, index_col=index_col)
     import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new)
 
 
