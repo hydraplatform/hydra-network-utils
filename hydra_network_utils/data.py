@@ -16,9 +16,9 @@ def make_dataframe_dataset_value(existing_value, df, data_type, column):
         if "data" in value:
             existing_df = pandas.read_json(json.dumps(value["data"]))
             existing_df[column] = df
-            value["data"] = existing_df.to_json(orient='columns')
+            value["data"] = json.loads(existing_df.to_json())
         else:
-            value["data"] = df.to_json(orient='columns')
+            value["data"] = json.loads(df.to_json())
         value = json.dumps(value)
     else:
         raise NotImplementedError(f'Datatype "{data_type.upper()}" not supported.')
