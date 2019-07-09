@@ -188,7 +188,7 @@ def apply_layouts(obj, filename, network_id, user_id):
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('--column', type=str)
-@click.option('--sheet-name', type=str, default=None)
+@click.option('--sheet-name', type=str, default=0)
 @click.option('--index-col', type=str, default=None)
 @click.option('--data-type', type=str, default='PYWR_DATAFRAME')
 @click.option('--create-new/--no-create-new', default=False)
