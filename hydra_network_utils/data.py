@@ -9,6 +9,8 @@ def make_dataframe_dataset_value(existing_value, df, data_type, column):
         existing_df = pandas.read_json(existing_value)
         # Update the dataframe
         existing_df[column] = df
+        # Embed data as strings of datetimes rather than timestamps.
+        existing_df.index = existing_df.index.astype(str)
         value = existing_df.to_json(orient='columns')
     elif data_type.lower() == 'pywr_dataframe':
         value = json.loads(existing_value)
@@ -16,8 +18,12 @@ def make_dataframe_dataset_value(existing_value, df, data_type, column):
         if "data" in value:
             existing_df = pandas.read_json(json.dumps(value["data"]))
             existing_df[column] = df
+            # Embed data as strings of datetimes rather than timestamps.
+            existing_df.index = existing_df.index.astype(str)
             value["data"] = json.loads(existing_df.to_json())
         else:
+            # Embed data as strings of datetimes rather than timestamps.
+            df.index = df.index.astype(str)
             value["data"] = json.loads(df.to_json())
         value = json.dumps(value)
     else:

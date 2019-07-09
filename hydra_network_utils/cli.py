@@ -200,7 +200,7 @@ def import_dataframe_excel(obj, filename, column, sheet_name, index_col, data_ty
                            network_id, scenario_id, attribute_id, user_id):
     """Import dataframes from Excel."""
     client = get_logged_in_client(obj, user_id=user_id)
-    dataframe = pandas.read_excel(filename, sheet_name=sheet_name, index_col=index_col)
+    dataframe = pandas.read_excel(filename, sheet_name=sheet_name, index_col=index_col, parse_dates=True)
     import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new,
                      data_type=data_type)
 
@@ -220,7 +220,7 @@ def import_dataframe_csv(obj, filename, column, index_col, create_new,
                          network_id, scenario_id, attribute_id, user_id):
     """Import dataframes from CSV."""
     client = get_logged_in_client(obj, user_id=user_id)
-    dataframe = pandas.read_csv(filename, index_col=index_col)
+    dataframe = pandas.read_csv(filename, index_col=index_col, parse_dates=True)
     import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new)
 
 
