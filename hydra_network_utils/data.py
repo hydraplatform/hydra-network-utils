@@ -14,7 +14,7 @@ def make_dataframe_dataset_value(existing_value, df, data_type, column):
         value = json.loads(existing_value)
 
         if "data" in value:
-            existing_df = pandas.read_json(value["data"])
+            existing_df = pandas.read_json(json.dumps(value["data"]))
             existing_df[column] = df
             value["data"] = existing_df.to_json(orient='columns')
         else:
