@@ -3,19 +3,22 @@ from hydra_base.lib.objects import Dataset
 import json
 
 
-def make_dataframe_dataset_value(df, data_type):
+def make_dataframe_dataset_value(existing_value, df, data_type, column):
 
     if data_type.lower() == 'dataframe':
-        value = df.to_json(orient='columns')
+        existing_df = pandas.read_json(existing_value)
+        # Update the dataframe
+        existing_df[column] = df
+        value = existing_df.to_json(orient='columns')
     elif data_type.lower() == 'pywr_dataframe':
-        value = df.to_json(orient='columns')
+        value = json.loads(existing_value)
 
-        value = {
-            "type": "dataframeparameter",
-            "data": json.loads(value),
-            "pandas_kwargs": {"parse_dates": True}
-        }
-
+        if "data" in value:
+            existing_df = pandas.read_json(value["data"])
+            existing_df[column] = df
+            value["data"] = existing_df.to_json(orient='columns')
+        else:
+            value["data"] = df.to_json(orient='columns')
         value = json.dumps(value)
     else:
         raise NotImplementedError(f'Datatype "{data_type.upper()}" not supported.')
@@ -48,11 +51,7 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
                 raise ValueError(f'Node "{node_name}" datatset for attribute_id "{attribute_id}" must be'
                                  f' type "{data_type.upper()}", not type "{dataset["type"]}".')
 
-            existing_df = pandas.read_json(dataset['value'])
-            # Update the dataframe
-            existing_df[column] = dataframe[node_name]
-            # .. and the dataset
-            dataset['value'] = make_dataframe_dataset_value(existing_df, data_type)
+            dataset['value'] = make_dataframe_dataset_value(dataset['value'], dataframe[node_name], data_type, column)
 
             node_data[node_name] = {
                 'node_id': node['id'],
@@ -72,9 +71,14 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
                 df = dataframe[node_name].to_frame()
                 df.columns = [column]
 
+                value = {
+                    "type": "dataframeparameter",
+                    "pandas_kwargs": {"parse_dates": True}
+                }
+
                 dataset = Dataset({
                     'name': "data",
-                    'value': make_dataframe_dataset_value(df, data_type),
+                    'value': make_dataframe_dataset_value(value, df, data_type, column),
                     "hidden": "N",
                     "type": data_type.upper(),
                     "unit": "-",
