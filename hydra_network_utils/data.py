@@ -1,5 +1,6 @@
 import pandas
-from hydra_base.lib.objects import Dataset
+from hydra_base.lib.objects import JSONObject, ResourceScenario, Dataset
+from hydra_base.exceptions import HydraError
 import json
 
 
@@ -130,3 +131,133 @@ def export_dataframes(client, network_id, scenario_id, attribute_ids=None):
             yield node['name'], attribute_name, df
 
 
+def get_resource_scenario(client, resource_attr_id, scenario_id):
+    """
+        Retrieve a resource scenario object (including dataset) using a
+        resource_attr_id and scenario_id.
+    """
+
+    rs_i = client.get_resource_scenario(resource_attr_id, scenario_id)
+
+    return ResourceScenario(rs_i)
+
+def get_matching_resource_scenarios(client, resource_attr_id, scenario_id, scenario_ids):
+    """
+        Find the equivalent RS objects from a list of scenarios:
+        These scenarios can exist in other networks. These networks should have a resource (node / link) that
+        is equivalent to the network being searched from -- same name, type and attribute.
+
+        The *source* is the network being searched from
+
+        The *targets* are the other networks where the matching resource scenarios are being searched
+    """
+
+    source_rs = get_resource_scenario(client, resource_attr_id, scenario_id)
+
+    #Identify the node name, type and attribute ID to use as search criteria in the other scenarios
+    source_ra = client.get_resource_attr(resource_attr_id)
+
+    source_attr_id = source_ra.attr_id
+    source_node_id = source_ra.node_id
+
+    source_node = client.get_node(node_id)
+    
+    #Identify the network IDS from the target scenario IDS
+    target_network_ids = []
+    for s_id in scenario_ids:
+        scenario_network = client.get_scenario(s_id, include_data=False)
+        target_network_ids.append(scenario_network.network_id)
+    
+    #Using the network IDS and node name, find the equivalent node in each of the
+    #target networks.
+    target_nodes = []
+    for  network_id in target_network_ids:
+        try:
+            target_node = client.get_node_by_name(network_id, source_node.name)
+            target_nodes.append(target_node)
+        except HydraError:
+            raise Exception("Network %s doesn't have a node with the name %s".format(network_id, source_node.name))
+    
+    #Now find the resource attr ID for each of the target nodes.
+    target_ra_ids = [] 
+    for target_node in target_nodes:
+        ra = client.get_resource_attr(node_id=target_node.id, attr_id=source_attr_id)
+        target_ra_ids.append(ra.id)
+    
+    #Now that we have the RA IDS and scenario IDS, find the RSs from each scenario
+    target_rs = []
+    for target_ra_id, i in enumerate(target_ra_ids):
+        #these have been kept in the same order, so find the scenario id from the index
+        target_scenario_id = scenario_ids[i]
+        target_network_id = target_network_ids[i]
+
+        try:
+            target_rs_i = client.get_resource_scenario(target_ra_id, target_scenario_id)
+        except HydraError:
+            raise Exception("Scenario {0} in network {1} does not have data for attribute {2}".format(target_scenario_id, target_network_id, source_attr_id))
+
+        target_rs_j = JSONObject(target_rs_i)
+
+        target_rs.append(target_rs_j)
+
+    return target_rs_j
+
+def extract_dataframes(rs_list):
+    """
+        Given a list of resource scenarios, extract the dataframe value from the dataset within the RS.
+    """
+    dataframes = []
+    for rs in rs_list:
+        dataset = rs.dataset
+        if dataset.type.lower() != 'dataframe':
+            raise Exception("Value in scenario {} isn't a dataframe".format(rs.scenario_id))
+        try:
+            pandas_df = dataset.read_json(value)
+        except:
+            raise Exception("Unable to read dataframe from scenario {0}".format(rs.scenario_id))
+            
+        dataframes.append(pandas_df)
+
+def combine_dataframes(dataframes):
+    """
+        Take a list of pandas dataframes with the same index and combine them into a single multi-column
+        dataframe.
+    """
+
+    dataset = {
+        name  = 'Combined Dataframe',
+        value = pd.concat(dataframes).as_json()
+    }
+
+    return dataset
+
+def update_resource_scenario(client, resource_attribute_id, scenario_id, combined_dataframe):
+    """
+        set the value of an RA on a scenario to the specified dataframe value.
+    """
+
+    rs = JSONObject({
+        'resource_attribute_id' : resource_attribute_id,
+        'scenario_id' : scenario_id,
+        'dataset' : combined_dataframe
+    })
+
+    hb.update_resource_scenario(rs)
+
+def assemble_dataframes(client, resource_attribute_id, scenario_id, source_scenario_ids):
+    """
+        Create a single data frame into a resource attribute by finding
+        equivalent resource attributes on other specified networks (identified through
+        scenario IDS)
+    """
+    
+    matching_rs_list = data.get_matching_resource_scenarios(client,
+                                                       resource_attribute_id,
+                                                       scenario_id,
+                                                       source_scenario_ids)
+
+    dataframes = data.extract_dataframes(rs_list)
+
+    combined_dataframe = data.combine_dataframes(dataframes)
+
+    data.update_resource_scenario(client, resource_attribute_id, scenario_id, combined_dataframes)
