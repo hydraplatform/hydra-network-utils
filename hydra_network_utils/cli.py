@@ -8,7 +8,7 @@ from collections import defaultdict
 import pandas
 import re
 from .gis import import_nodes_from_shapefile, import_links_from_shapefile
-from .data import import_dataframe, export_dataframes
+from . import data
 
 UPLOAD_DIR = config.get('plugin', 'upload_dir', '/tmp/uploads')
 UPLOAD_DIR = config.get('plugin', 'output_dir', '/tmp/uploads')
@@ -201,7 +201,7 @@ def import_dataframe_excel(obj, filename, column, sheet_name, index_col, data_ty
     """Import dataframes from Excel."""
     client = get_logged_in_client(obj, user_id=user_id)
     dataframe = pandas.read_excel(filename, sheet_name=sheet_name, index_col=index_col, parse_dates=True)
-    import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new,
+    data.import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new,
                      data_type=data_type)
 
 
@@ -221,7 +221,7 @@ def import_dataframe_csv(obj, filename, column, index_col, create_new,
     """Import dataframes from CSV."""
     client = get_logged_in_client(obj, user_id=user_id)
     dataframe = pandas.read_csv(filename, index_col=index_col, parse_dates=True)
-    import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new)
+    data.import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new)
 
 
 @hydra_app(category='network_utility', name='Export dataframes to Excel')
@@ -241,7 +241,7 @@ def export_dataframes_excel(obj, network_id, scenario_id, attribute_id, user_id,
         attribute_ids = [attribute_id]
 
     dataframes = defaultdict(dict)
-    for node_name, attr_name, df in export_dataframes(client, network_id, scenario_id, attribute_ids=attribute_ids):
+    for node_name, attr_name, df in data.export_dataframes(client, network_id, scenario_id, attribute_ids=attribute_ids):
         dataframes[attr_name][node_name] = df
 
     # TODO make the filename configurable or based on the network name
@@ -254,7 +254,23 @@ def export_dataframes_excel(obj, network_id, scenario_id, attribute_id, user_id,
         df.to_excel(writer, sheet_name=sheet_name)
     writer.save()
 
+@hydra_app(category='network_utility', name='Combine dataframes from multiple networks at once')
+@cli.command(name='assemble-dataframes')
+@click.pass_obj
+@click.option('-a', '--resource-attribute-id', type=int, default=None)
+@click.option('-s', '--scenario-id', type=int, default=None)
+@click.option('-t', '--source-scenario-ids', type=int, default=None, multiple=True)
+@click.option('-u', '--user-id', type=int, default=None)
+def assemble_dataframes(obj, resource_attribute_id, scenario_id, source_scenario_ids, user_id):
+    """
+        Create a single data frame into a resource attribute by finding
+        equivalent resource attributes on other specified networks (identified through
+        scenario IDS)
+    """
+    client = get_logged_in_client(obj, user_id=user_id)
 
+    data.assemble_dataframes(client, resource_attribute_id, scenario_id, source_scenario_ids):
+    
 @cli.command()
 @click.pass_obj
 @click.argument('docker-image', type=str)
