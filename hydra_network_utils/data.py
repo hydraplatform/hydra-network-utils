@@ -77,10 +77,10 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
                 df = dataframe[node_name].to_frame()
                 df.columns = [column]
 
-                value = {
+                value = json.dumps({
                     "type": "dataframeparameter",
                     "pandas_kwargs": {"parse_dates": True}
-                }
+                })
 
                 dataset = Dataset({
                     'name': "data",
