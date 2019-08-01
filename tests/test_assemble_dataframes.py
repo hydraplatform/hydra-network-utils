@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from hydra_base.tests.fixtures import *
 from fixtures import *
-from hydra_base.tests.util import create_dataframe
-from hydra_network_utilities import data
+from hydra_base.util.testing import create_dataframe
+from hydra_network_utils import data
 import pytest
 
 class TestAssembleDataframes:
-    def test_assemble_dataframes(self, client, projectmaker, networkmaker):
+    def test_assemble_dataframes(self, session, client, projectmaker, networkmaker):
         """
         """
 
@@ -32,7 +31,7 @@ class TestAssembleDataframes:
                                                          }
                                       )
 
-        hc.update_resorucedata(source_scenario_1.id, [source_df_1], user_id=pytest.root_user_id)
+        hydra_base.update_resourcedata(source_scenario_1.id, [source_df_1], user_id=pytest.root_user_id)
         
         source_network_2 = networkmaker.create(project_id=project.id)
         
@@ -50,34 +49,19 @@ class TestAssembleDataframes:
                                                          }
                                       )
 
-        hc.update_resorucedata(source_scenario_2.id, [source_df_2], user_id=pytest.root_user_id)
+        hydra_base.update_resourcedata(source_scenario_2.id, [source_df_2], user_id=pytest.root_user_id)
 
-
-
-        matching_rs_list = data.get_matching_resource_scenarios(client,
-                                                       resource_attribute_id,
-                                                       scenario_id,
-                                                       source_scenario_ids)
-
-        dataframes = data.extract_dataframes(rs_list)
-
-        combined_dataframe = data.combine_dataframes(dataframes)
-
-        data.update_resource_scenario(resource_attribute_id, scenario_id, resource_attr_id)
-
-
-        #Assemble the dataframes
         
-        matching_rs_list = data.get_matching_resource_scenarios(client,
-                                                       resource_attribute_id,
-                                                       scenario_id,
-                                                       source_scenario_ids)
+        target_ra = target_network.nodes[0].attributes[0]
+        target_scenario = target_network.scenarios[0]
 
-        dataframes = data.extract_dataframes(rs_list)
+        combined_dataframe = data.assemble_dataframes(client,
+                                 target_ra.id,
+                                 target_scenario.id,
+                                 [source_scenario_1.id, source_scenario_2.id])
 
-        combined_dataframe = data.combine_dataframes(dataframes)
+        updated_scenario = client.get_scenario(target_scenario.id)
 
-        data.update_resource_scenario(resource_attribute_id, scenario_id, resource_attr_id)
-
-
-
+        for rs in updated_scenario.resourcescenarios:
+            if rs.resource_attr_id == target_ra.id:
+                assert rs.dataset.value == combined_dataframe.value

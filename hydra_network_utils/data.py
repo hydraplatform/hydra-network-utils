@@ -155,12 +155,12 @@ def get_matching_resource_scenarios(client, resource_attr_id, scenario_id, scena
     source_rs = get_resource_scenario(client, resource_attr_id, scenario_id)
 
     #Identify the node name, type and attribute ID to use as search criteria in the other scenarios
-    source_ra = client.get_resource_attr(resource_attr_id)
+    source_ra = client.get_resource_attribute(resource_attr_id)
 
     source_attr_id = source_ra.attr_id
     source_node_id = source_ra.node_id
 
-    source_node = client.get_node(node_id)
+    source_node = client.get_node(source_node_id)
     
     #Identify the network IDS from the target scenario IDS
     target_network_ids = []
@@ -181,12 +181,16 @@ def get_matching_resource_scenarios(client, resource_attr_id, scenario_id, scena
     #Now find the resource attr ID for each of the target nodes.
     target_ra_ids = [] 
     for target_node in target_nodes:
-        ra = client.get_resource_attr(node_id=target_node.id, attr_id=source_attr_id)
-        target_ra_ids.append(ra.id)
+        for ra in target_node.attributes:
+            if ra.attr_id == source_attr_id:
+                target_ra_ids.append(ra.id)
+                break
+        else:
+            raise Exception("Unable to find attribute {} on node {}".format(source_attr_id, target_node.name))
     
     #Now that we have the RA IDS and scenario IDS, find the RSs from each scenario
     target_rs = []
-    for target_ra_id, i in enumerate(target_ra_ids):
+    for i, target_ra_id in enumerate(target_ra_ids):
         #these have been kept in the same order, so find the scenario id from the index
         target_scenario_id = scenario_ids[i]
         target_network_id = target_network_ids[i]
@@ -200,34 +204,48 @@ def get_matching_resource_scenarios(client, resource_attr_id, scenario_id, scena
 
         target_rs.append(target_rs_j)
 
-    return target_rs_j
+    return target_rs
 
 def extract_dataframes(rs_list):
     """
         Given a list of resource scenarios, extract the dataframe value from the dataset within the RS.
     """
+
     dataframes = []
     for rs in rs_list:
         dataset = rs.dataset
         if dataset.type.lower() != 'dataframe':
             raise Exception("Value in scenario {} isn't a dataframe".format(rs.scenario_id))
         try:
-            pandas_df = dataset.read_json(value)
+            pandas_df = pandas.read_json(dataset.value)
         except:
             raise Exception("Unable to read dataframe from scenario {0}".format(rs.scenario_id))
+
+        #before saving the dataframe, add the scenario ID to the column names so they can be unique
+        original_cols = pandas_df.columns
+        new_cols = []
+        for c in original_cols:
+            new_cols.append("{}_{}".format(c, rs.scenario_id))
+
+        pandas_df.columns = new_cols
             
         dataframes.append(pandas_df)
+
+    return dataframes
 
 def combine_dataframes(dataframes):
     """
         Take a list of pandas dataframes with the same index and combine them into a single multi-column
         dataframe.
     """
+    #merge the datframes, assuming they have the same inndex (axis=1 does that)
+    concat_df = pandas.concat(dataframes, axis=1)
 
-    dataset = {
-        name  = 'Combined Dataframe',
-        value = pd.concat(dataframes).as_json()
-    }
+    dataset = Dataset({
+        'name'  : 'Combined Dataframe',
+        'type'  : 'dataframe',
+        'value' : concat_df.to_json()
+    })
 
     return dataset
 
@@ -237,12 +255,12 @@ def update_resource_scenario(client, resource_attribute_id, scenario_id, combine
     """
 
     rs = JSONObject({
-        'resource_attribute_id' : resource_attribute_id,
+        'resource_attr_id' : resource_attribute_id,
         'scenario_id' : scenario_id,
         'dataset' : combined_dataframe
     })
 
-    hb.update_resource_scenario(rs)
+    client.update_resourcedata(scenario_id, [rs])
 
 def assemble_dataframes(client, resource_attribute_id, scenario_id, source_scenario_ids):
     """
@@ -251,13 +269,15 @@ def assemble_dataframes(client, resource_attribute_id, scenario_id, source_scena
         scenario IDS)
     """
     
-    matching_rs_list = data.get_matching_resource_scenarios(client,
+    matching_rs_list = get_matching_resource_scenarios(client,
                                                        resource_attribute_id,
                                                        scenario_id,
                                                        source_scenario_ids)
 
-    dataframes = data.extract_dataframes(rs_list)
+    dataframes = extract_dataframes(matching_rs_list)
 
-    combined_dataframe = data.combine_dataframes(dataframes)
+    combined_dataframe = combine_dataframes(dataframes)
 
-    data.update_resource_scenario(client, resource_attribute_id, scenario_id, combined_dataframes)
+    update_resource_scenario(client, resource_attribute_id, scenario_id, combined_dataframe)
+
+    return combined_dataframe

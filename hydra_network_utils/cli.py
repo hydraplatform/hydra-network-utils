@@ -269,7 +269,7 @@ def assemble_dataframes(obj, resource_attribute_id, scenario_id, source_scenario
     """
     client = get_logged_in_client(obj, user_id=user_id)
 
-    data.assemble_dataframes(client, resource_attribute_id, scenario_id, source_scenario_ids):
+    data.assemble_dataframes(client, resource_attribute_id, scenario_id, source_scenario_ids)
     
 @cli.command()
 @click.pass_obj
