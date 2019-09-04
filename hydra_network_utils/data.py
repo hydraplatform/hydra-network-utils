@@ -262,22 +262,27 @@ def update_resource_scenario(client, resource_attribute_id, scenario_id, combine
 
     client.update_resourcedata(scenario_id, [rs])
 
-def assemble_dataframes(client, resource_attribute_id, scenario_id, source_scenario_ids):
+def assemble_dataframes(client, resource_attribute_ids, scenario_id, source_scenario_ids):
     """
         Create a single data frame into a resource attribute by finding
         equivalent resource attributes on other specified networks (identified through
         scenario IDS)
     """
-    
-    matching_rs_list = get_matching_resource_scenarios(client,
+
+    assembled_dataframes = []
+    for resource_attribute_id in resource_attribute_ids: 
+        matching_rs_list = get_matching_resource_scenarios(client,
                                                        resource_attribute_id,
                                                        scenario_id,
                                                        source_scenario_ids)
 
-    dataframes = extract_dataframes(matching_rs_list)
+        dataframes = extract_dataframes(matching_rs_list)
 
-    combined_dataframe = combine_dataframes(dataframes)
+        combined_dataframe = combine_dataframes(dataframes)
 
-    update_resource_scenario(client, resource_attribute_id, scenario_id, combined_dataframe)
+        update_resource_scenario(client, resource_attribute_id, scenario_id, combined_dataframe)
 
-    return combined_dataframe
+        assembled_dataframes.append(combined_dataframe)
+
+    return assembled_dataframes
+

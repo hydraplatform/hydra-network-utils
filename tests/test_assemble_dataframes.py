@@ -55,8 +55,8 @@ class TestAssembleDataframes:
         target_ra = target_network.nodes[0].attributes[0]
         target_scenario = target_network.scenarios[0]
 
-        combined_dataframe = data.assemble_dataframes(client,
-                                 target_ra.id,
+        combined_dataframes = data.assemble_dataframes(client,
+                                 [target_ra.id],
                                  target_scenario.id,
                                  [source_scenario_1.id, source_scenario_2.id])
 
@@ -64,4 +64,4 @@ class TestAssembleDataframes:
 
         for rs in updated_scenario.resourcescenarios:
             if rs.resource_attr_id == target_ra.id:
-                assert rs.dataset.value == combined_dataframe.value
+                assert rs.dataset.value == combined_dataframes[0].value
