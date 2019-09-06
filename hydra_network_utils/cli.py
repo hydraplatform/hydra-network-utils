@@ -257,7 +257,7 @@ def export_dataframes_excel(obj, network_id, scenario_id, attribute_id, user_id,
 @hydra_app(category='network_utility', name='Combine dataframes from multiple networks at once')
 @cli.command(name='assemble-dataframes')
 @click.pass_obj
-@click.option('-a', '--resource-attribute-id', type=int, default=None, multiple=True)
+@click.option('-a', '--resource-attribute-ids', type=int, default=None, multiple=True)
 @click.option('-s', '--scenario-id', type=int, default=None)
 @click.option('-t', '--source-scenario-ids', type=int, default=None, multiple=True)
 @click.option('-u', '--user-id', type=int, default=None)
