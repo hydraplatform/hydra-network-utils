@@ -187,7 +187,7 @@ def apply_layouts(obj, filename, network_id, user_id):
 @cli.command(name='import-dataframe-excel')
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
-@click.option('--column', type=str)
+@click.option('--column', type=str, default=None)
 @click.option('--sheet-name', type=str, default=0)
 @click.option('--index-col', type=str, default=None)
 @click.option('--data-type', type=str, default='PYWR_DATAFRAME')
@@ -209,7 +209,7 @@ def import_dataframe_excel(obj, filename, column, sheet_name, index_col, data_ty
 @cli.command(name='import-dataframe-csv')
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
-@click.option('--column', type=str)
+@click.option('--column', type=str, default=None)
 @click.option('--index-col', type=str, default=None)
 @click.option('--create-new/--no-create-new', default=False)
 @click.option('-n', '--network-id', type=int, default=None)

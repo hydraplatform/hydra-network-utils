@@ -4,12 +4,15 @@ from hydra_base.exceptions import HydraError
 import json
 
 
-def make_dataframe_dataset_value(existing_value, df, data_type, column):
+def make_dataframe_dataset_value(existing_value, df, data_type, column=None):
 
     if data_type.lower() == 'dataframe':
-        existing_df = pandas.read_json(existing_value)
-        # Update the dataframe
-        existing_df[column] = df
+        if column is None:
+            # Update the dataframe
+            existing_df = pandas.read_json(existing_value)
+            existing_df[column] = df
+        else:
+            existing_df = df
         # Embed data as strings of datetimes rather than timestamps.
         existing_df.index = existing_df.index.astype(str)
         value = existing_df.to_json(orient='columns')
@@ -17,8 +20,12 @@ def make_dataframe_dataset_value(existing_value, df, data_type, column):
         value = json.loads(existing_value)
 
         if "data" in value:
-            existing_df = pandas.read_json(json.dumps(value["data"]))
-            existing_df[column] = df
+            if column is None:
+                # Update the dataframe
+                existing_df = pandas.read_json(json.dumps(value["data"]))
+                existing_df[column] = df
+            else:
+                existing_df = df
             # Embed data as strings of datetimes rather than timestamps.
             existing_df.index = existing_df.index.astype(str)
             value["data"] = json.loads(existing_df.to_json())
@@ -33,7 +40,7 @@ def make_dataframe_dataset_value(existing_value, df, data_type, column):
     return value
 
 
-def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column,
+def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column=None,
                      create_new=False, data_type='PYWR_DATAFRAME'):
 
     # Find all the nodes in the network
