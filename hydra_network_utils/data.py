@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 def make_dataframe_dataset_value(existing_value, df, data_type, column=None):
 
     if data_type.lower() == 'dataframe':
-        if column is None:
+        if column is not None:
             # Update the dataframe
             existing_df = pandas.read_json(existing_value)
             existing_df[column] = df
@@ -23,7 +23,7 @@ def make_dataframe_dataset_value(existing_value, df, data_type, column=None):
         value = json.loads(existing_value)
 
         if "data" in value:
-            if column is None:
+            if column is not None:
                 # Update the dataframe
                 existing_df = pandas.read_json(json.dumps(value["data"]))
                 existing_df[column] = df
@@ -34,6 +34,7 @@ def make_dataframe_dataset_value(existing_value, df, data_type, column=None):
             value["data"] = json.loads(existing_df.to_json())
         else:
             # Embed data as strings of datetimes rather than timestamps.
+            log.critical("Updating the value as a PYWR dataframe.")
             df.index = df.index.astype(str)
             value["data"] = json.loads(df.to_json())
         value = json.dumps(value)
@@ -88,14 +89,21 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
                 df = dataframe[node_name].to_frame()
                 df.columns = [column]
 
-                value = json.dumps({
-                    "type": "dataframeparameter",
-                    "pandas_kwargs": {"parse_dates": True}
-                })
+                if data_type.lower() == 'dataframe':
+                    # Embed data as strings of datetimes rather than timestamps.
+                    df.index = df.index.astype(str)
+                    value = df.to_json(orient='columns')
+                else:
+                    default_value = json.dumps({
+                        "type": "dataframeparameter",
+                        "pandas_kwargs": {"parse_dates": True}
+                    })
+
+                    value = make_dataframe_dataset_value(default_value, df, data_type, column)
 
                 dataset = Dataset({
                     'name': "data",
-                    'value': make_dataframe_dataset_value(value, df, data_type, column),
+                    'value': value,
                     "hidden": "N",
                     "type": data_type.upper(),
                     "unit": "-",
