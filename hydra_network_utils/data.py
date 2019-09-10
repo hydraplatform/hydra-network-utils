@@ -3,6 +3,9 @@ from hydra_base.lib.objects import JSONObject, ResourceScenario, Dataset
 from hydra_base.exceptions import HydraError
 import json
 
+import logging
+log = logging.getLogger(__name__)
+
 
 def make_dataframe_dataset_value(existing_value, df, data_type, column=None):
 
@@ -269,22 +272,32 @@ def update_resource_scenario(client, resource_attribute_id, scenario_id, combine
 
     client.update_resourcedata(scenario_id, [rs])
 
-def assemble_dataframes(client, resource_attribute_id, scenario_id, source_scenario_ids):
+def assemble_dataframes(client, resource_attribute_ids, scenario_id, source_scenario_ids):
     """
         Create a single data frame into a resource attribute by finding
         equivalent resource attributes on other specified networks (identified through
         scenario IDS)
     """
-    
-    matching_rs_list = get_matching_resource_scenarios(client,
+
+    assembled_dataframes = []
+    log.info("Retrieving data for resource attributes %s into %s ", resource_attribute_ids, source_scenario_ids)
+    for resource_attribute_id in resource_attribute_ids: 
+        matching_rs_list = get_matching_resource_scenarios(client,
                                                        resource_attribute_id,
                                                        scenario_id,
                                                        source_scenario_ids)
+        
+        log.info("[RA %s] [Scenario IDS %s] [RS IDs %s]",
+                                                    resource_attribute_id,
+                                                    source_scenario_ids,
+                                                    resource_attribute_id)
+        dataframes = extract_dataframes(matching_rs_list)
 
-    dataframes = extract_dataframes(matching_rs_list)
+        combined_dataframe = combine_dataframes(dataframes)
 
-    combined_dataframe = combine_dataframes(dataframes)
+        update_resource_scenario(client, resource_attribute_id, scenario_id, combined_dataframe)
 
-    update_resource_scenario(client, resource_attribute_id, scenario_id, combined_dataframe)
+        assembled_dataframes.append(combined_dataframe)
 
-    return combined_dataframe
+    return assembled_dataframes
+

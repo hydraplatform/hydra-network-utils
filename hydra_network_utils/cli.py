@@ -257,11 +257,11 @@ def export_dataframes_excel(obj, network_id, scenario_id, attribute_id, user_id,
 @hydra_app(category='network_utility', name='Combine dataframes from multiple networks at once')
 @cli.command(name='assemble-dataframes')
 @click.pass_obj
-@click.option('-a', '--resource-attribute-id', type=int, default=None)
+@click.option('-a', '--resource-attribute-ids', type=int, default=None, multiple=True)
 @click.option('-s', '--scenario-id', type=int, default=None)
 @click.option('-t', '--source-scenario-ids', type=int, default=None, multiple=True)
 @click.option('-u', '--user-id', type=int, default=None)
-def assemble_dataframes(obj, resource_attribute_id, scenario_id, source_scenario_ids, user_id):
+def assemble_dataframes(obj, resource_attribute_ids, scenario_id, source_scenario_ids, user_id):
     """
         Create a single data frame into a resource attribute by finding
         equivalent resource attributes on other specified networks (identified through
@@ -269,7 +269,7 @@ def assemble_dataframes(obj, resource_attribute_id, scenario_id, source_scenario
     """
     client = get_logged_in_client(obj, user_id=user_id)
 
-    data.assemble_dataframes(client, resource_attribute_id, scenario_id, source_scenario_ids)
+    data.assemble_dataframes(client, resource_attribute_ids, scenario_id, source_scenario_ids)
     
 @cli.command()
 @click.pass_obj

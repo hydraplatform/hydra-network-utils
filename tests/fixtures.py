@@ -17,6 +17,9 @@ import six
 
 import datetime
 
+import logging
+log = logging.getLogger(__name__)
+
 @pytest.fixture(scope='function')
 def client(testdb_uri, session):
     client = JSONConnection(app_name='Hydra Network Utilities App', session=hydra_base.db.DBSession)

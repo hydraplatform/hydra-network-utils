@@ -5,6 +5,7 @@ from fixtures import *
 from hydra_base.util.testing import create_dataframe
 from hydra_network_utils import data
 import pytest
+import pandas as pd
 
 class TestAssembleDataframes:
     def test_assemble_dataframes(self, session, client, projectmaker, networkmaker):
@@ -42,9 +43,9 @@ class TestAssembleDataframes:
         source_df_2 = create_dataframe(source_ra_2, 
                                        dataframe_value = {"test_column": 
                                                             {
-                                                                'key1': 1,
-                                                                'key2': 2,
-                                                                'key3': 3
+                                                                'key1': 10,
+                                                                'key2': 20,
+                                                                'key3': 30
                                                             }
                                                          }
                                       )
@@ -55,13 +56,16 @@ class TestAssembleDataframes:
         target_ra = target_network.nodes[0].attributes[0]
         target_scenario = target_network.scenarios[0]
 
-        combined_dataframe = data.assemble_dataframes(client,
-                                 target_ra.id,
+        combined_dataframes = data.assemble_dataframes(client,
+                                 [target_ra.id],
                                  target_scenario.id,
                                  [source_scenario_1.id, source_scenario_2.id])
 
         updated_scenario = client.get_scenario(target_scenario.id)
+    
+        pd.read_json(combined_dataframes[0].value)[f'test_column_{source_scenario_1.id}']['key1'] == 1
+        pd.read_json(combined_dataframes[0].value)[f'test_column_{source_scenario_2.id}']['key1'] == 10
 
         for rs in updated_scenario.resourcescenarios:
             if rs.resource_attr_id == target_ra.id:
-                assert rs.dataset.value == combined_dataframe.value
+                assert rs.dataset.value == combined_dataframes[0].value
