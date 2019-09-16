@@ -23,9 +23,16 @@ def json_to_df(json_dataframe):
 
     #extraxt the ordered index from the dict
     ordered_index = list(data_dict[df.columns[0]].keys())
+
+    #extract the order of columns
+    ordered_cols = list(data_dict.keys())
     
-    #Make the df index a string so it is comparable to the dict index (which must be string based)
+    #Make the df index and columns a string so it is comparable to the dict index (which must be string based)
     df.index = df.index.astype(str)
+    df.columns = df.columns.astype(str)
+    
+    #set the column ordering as per the incoming json data
+    df = df[ordered_cols]
 
     #reindex the dataframe to have the correct order
     df = df.reindex(ordered_index)
