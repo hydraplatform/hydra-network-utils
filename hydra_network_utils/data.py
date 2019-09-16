@@ -6,13 +6,42 @@ import json
 import logging
 log = logging.getLogger(__name__)
 
+def json_to_df(json_dataframe):
+    """
+     Create a pandas dataframe from a json string.
+     Pandas does not maintain the order of the index; it sorts it.
+     To manage this, we avail of python 3.6+ inhernet dict ordering to identify
+     the correct index order, and then reindex the dataframe to this after
+     it has been created
+    """
+
+    #Load the json dataframe into a native dict
+    data_dict = json.loads(json_dataframe)
+    
+    #load the json dataframe into a pandas dataframe
+    df = pandas.read_json(json_dataframe)
+
+    #extraxt the ordered index from the dict
+    ordered_index = list(data_dict[df.columns[0]].keys())
+    
+    #Make the df index a string so it is comparable to the dict index (which must be string based)
+    df.index = df.index.astype(str)
+
+    #reindex the dataframe to have the correct order
+    df = df.reindex(ordered_index)
+    
+    return df
 
 def make_dataframe_dataset_value(existing_value, df, data_type, column=None):
-
+    
+    #Turn the target dataframe's index into a string so it is comparable to
+    #the index of the dataframe coming from existing_value
+    df.index = df.index.astype(str)
+    
     if data_type.lower() == 'dataframe':
         if column is not None:
             # Update the dataframe
-            existing_df = pandas.read_json(existing_value)
+            existing_df = json_to_df(existing_value)
             existing_df[column] = df
         else:
             existing_df = df
@@ -25,7 +54,7 @@ def make_dataframe_dataset_value(existing_value, df, data_type, column=None):
         if "data" in value:
             if column is not None:
                 # Update the dataframe
-                existing_df = pandas.read_json(json.dumps(value["data"]))
+                existing_df = json_to_df(json.dumps(value["data"]))
                 existing_df[column] = df
             else:
                 existing_df = df
@@ -145,7 +174,7 @@ def export_dataframes(client, network_id, scenario_id, attribute_ids=None):
             if dataset['type'].lower() != 'dataframe':
                 continue  # Skip non-datasets
 
-            df = pandas.read_json(dataset['value'])
+            df = json_to_df(dataset['value'])
             yield node['name'], attribute_name, df
 
 
@@ -235,7 +264,7 @@ def extract_dataframes(rs_list):
         if dataset.type.lower() != 'dataframe':
             raise Exception("Value in scenario {} isn't a dataframe".format(rs.scenario_id))
         try:
-            pandas_df = pandas.read_json(dataset.value)
+            pandas_df = json_to_df(dataset.value)
         except:
             raise Exception("Unable to read dataframe from scenario {0}".format(rs.scenario_id))
 
