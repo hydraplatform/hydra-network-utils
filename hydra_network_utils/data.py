@@ -17,7 +17,7 @@ def json_to_df(json_dataframe):
 
     #Load the json dataframe into a native dict
     data_dict = json.loads(json_dataframe)
-    
+
     #load the json dataframe into a pandas dataframe
     df = pandas.read_json(json_dataframe)
 
@@ -26,32 +26,50 @@ def json_to_df(json_dataframe):
 
     #extract the order of columns
     ordered_cols = list(data_dict.keys())
-    
+
     #Make the df index and columns a string so it is comparable to the dict index (which must be string based)
     df.index = df.index.astype(str)
     df.columns = df.columns.astype(str)
-    
+
     #set the column ordering as per the incoming json data
     df = df[ordered_cols]
 
     #reindex the dataframe to have the correct order
     df = df.reindex(ordered_index)
-    
+
     return df
 
 def make_dataframe_dataset_value(existing_value, df, data_type, column=None):
-    
+
     #Turn the target dataframe's index into a string so it is comparable to
     #the index of the dataframe coming from existing_value
     df.index = df.index.astype(str)
-    
+
     if data_type.lower() == 'dataframe':
-        if column is not None:
-            # Update the dataframe
-            existing_df = json_to_df(existing_value)
+
+        existing_df = json_to_df(existing_value)
+
+        #if there's only one column, then ignore the column parameter and just
+        #use the existing one in the dataset
+        if len(existing_df.columns) == 1:
+            #If the incoming data has more or less rows than the existing
+            #dataframe, then the existing one must be reindexed
+            if len(df.index) != len(existing_df.index):
+                existing_df = existing_df.reindex(df.index)
+
+            existing_df[existing_df.columns[0]] = df
+
+        elif column is not None:
+
+            #If the incoming data has more or less rows than the existing
+            #dataframe, then the existing one must be reindexed
+            if len(df.index) != len(existing_df.index):
+                existing_df = existing_df.reindex(df.index)
+
             existing_df[column] = df
         else:
             existing_df = df
+
         # Embed data as strings of datetimes rather than timestamps.
         existing_df.index = existing_df.index.astype(str)
         value = existing_df.to_json(orient='columns')
@@ -215,13 +233,13 @@ def get_matching_resource_scenarios(client, resource_attr_id, scenario_id, scena
     source_node_id = source_ra.node_id
 
     source_node = client.get_node(source_node_id)
-    
+
     #Identify the network IDS from the target scenario IDS
     target_network_ids = []
     for s_id in scenario_ids:
         scenario_network = client.get_scenario(s_id, include_data=False)
         target_network_ids.append(scenario_network.network_id)
-    
+
     #Using the network IDS and node name, find the equivalent node in each of the
     #target networks.
     target_nodes = []
@@ -231,9 +249,9 @@ def get_matching_resource_scenarios(client, resource_attr_id, scenario_id, scena
             target_nodes.append(target_node)
         except HydraError:
             raise Exception("Network %s doesn't have a node with the name %s".format(network_id, source_node.name))
-    
+
     #Now find the resource attr ID for each of the target nodes.
-    target_ra_ids = [] 
+    target_ra_ids = []
     for target_node in target_nodes:
         for ra in target_node.attributes:
             if ra.attr_id == source_attr_id:
@@ -241,7 +259,7 @@ def get_matching_resource_scenarios(client, resource_attr_id, scenario_id, scena
                 break
         else:
             raise Exception("Unable to find attribute {} on node {}".format(source_attr_id, target_node.name))
-    
+
     #Now that we have the RA IDS and scenario IDS, find the RSs from each scenario
     target_rs = []
     for i, target_ra_id in enumerate(target_ra_ids):
@@ -282,7 +300,7 @@ def extract_dataframes(rs_list):
             new_cols.append("{}_{}".format(c, rs.scenario_id))
 
         pandas_df.columns = new_cols
-            
+
         dataframes.append(pandas_df)
 
     return dataframes
@@ -325,12 +343,12 @@ def assemble_dataframes(client, resource_attribute_ids, scenario_id, source_scen
 
     assembled_dataframes = []
     log.info("Retrieving data for resource attributes %s into %s ", resource_attribute_ids, source_scenario_ids)
-    for resource_attribute_id in resource_attribute_ids: 
+    for resource_attribute_id in resource_attribute_ids:
         matching_rs_list = get_matching_resource_scenarios(client,
                                                        resource_attribute_id,
                                                        scenario_id,
                                                        source_scenario_ids)
-        
+
         log.info("[RA %s] [Scenario IDS %s] [RS IDs %s]",
                                                     resource_attribute_id,
                                                     source_scenario_ids,
