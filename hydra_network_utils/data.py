@@ -14,7 +14,6 @@ def json_to_df(json_dataframe):
      the correct index order, and then reindex the dataframe to this after
      it has been created
     """
-
     #Load the json dataframe into a native dict
     data_dict = json.loads(json_dataframe)
 
@@ -22,7 +21,7 @@ def json_to_df(json_dataframe):
     df = pandas.read_json(json_dataframe)
 
     #extraxt the ordered index from the dict
-    ordered_index = list(data_dict[df.columns[0]].keys())
+    ordered_index = list(data_dict[str(df.columns[0])].keys())
 
     #extract the order of columns
     ordered_cols = list(data_dict.keys())
@@ -39,7 +38,7 @@ def json_to_df(json_dataframe):
 
     return df
 
-def make_dataframe_dataset_value(existing_value, df, data_type, column=None):
+def make_dataframe_dataset_value(existing_value, df, data_type, column=None, node_name=None):
 
     #Turn the target dataframe's index into a string so it is comparable to
     #the index of the dataframe coming from existing_value
@@ -77,12 +76,37 @@ def make_dataframe_dataset_value(existing_value, df, data_type, column=None):
         value = json.loads(existing_value)
 
         if "data" in value:
-            if column is not None:
-                # Update the dataframe
+            #default to null in case the data in Hydra isn't a dataframe which
+            #can be updated, and needs to be overwritten
+            existing_df = None
+            try:
                 existing_df = json_to_df(json.dumps(value["data"]))
+            except Exception as e:
+                log.exception(e)
+                log.warning(f"Unable to convert {node_name} value to a dataframe."+
+                            " This value must already be a dataframe."+
+                            f"Error was {e}")
+
+            if column is not None:
+                # Update the specified column of the existing dataframe
                 existing_df[column] = df
             else:
-                existing_df = df
+                #if it's not a dataframe, it's probably a series,
+                #so turn it into a dataframe
+                if not isinstance(df, pandas.DataFrame):
+                    df = df.to_frame(name='0')
+                if existing_df is None:
+                    existing_df = df
+                #if not column is specified, overwrite the dataframe.
+                #This can only be done if the existing dataframe has a single column,
+                #as otherwise we won't know which column to update
+                elif len(existing_df.columns) == 1:
+                    existing_df = df
+                else:
+                    raise Exception(f"Can't set value on node {node_name}. "+
+                                    "Existing value has more than one column."+
+                                    "Please specify which column to update with"+
+                                    " the --column argument")
             # Embed data as strings of datetimes rather than timestamps.
             existing_df.index = existing_df.index.astype(str)
             value["data"] = json.loads(existing_df.to_json())
@@ -121,9 +145,13 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
 
             if dataset['type'].lower() != data_type.lower():
                 raise ValueError(f'Node "{node_name}" datatset for attribute_id "{attribute_id}" must be'
-                                 f' type "{data_type.upper()}", not type "{dataset["type"]}".')
+                                 f' type "{dataset["type"]}", not type "{data_type.upper()}".')
 
-            dataset['value'] = make_dataframe_dataset_value(dataset['value'], dataframe[node_name], data_type, column)
+            dataset['value'] = make_dataframe_dataset_value(dataset['value'],
+                                                            dataframe[node_name],
+                                                            data_type,
+                                                            column,
+                                                            node_name)
 
             node_data[node_name] = {
                 'node_id': node['id'],
@@ -137,7 +165,9 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
                 raise ValueError(f'Node "{node_name}" does not contain a resource attribute '
                                  f'for the attribute "{attribute_id}".')
             else:
-                resource_attribute = client.add_resource_attribute('NODE', node['id'], attribute_id, 'N',
+                resource_attribute = client.add_resource_attribute('NODE',
+                                                                   node['id'],
+                                                                   attribute_id, 'N',
                                                                    error_on_duplicate=False)
 
                 df = dataframe[node_name].to_frame()
@@ -153,7 +183,11 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
                         "pandas_kwargs": {"parse_dates": True}
                     })
 
-                    value = make_dataframe_dataset_value(default_value, df, data_type, column)
+                    value = make_dataframe_dataset_value(default_value,
+                                                         df,
+                                                         data_type,
+                                                         column,
+                                                         node_name)
 
                 dataset = Dataset({
                     'name': "data",
@@ -248,7 +282,8 @@ def get_matching_resource_scenarios(client, resource_attr_id, scenario_id, scena
             target_node = client.get_node_by_name(network_id, source_node.name)
             target_nodes.append(target_node)
         except HydraError:
-            raise Exception("Network %s doesn't have a node with the name %s".format(network_id, source_node.name))
+            raise Exception(f"Network {network_id} doesn't have a node with the"+
+                            f" name {source_node.name}")
 
     #Now find the resource attr ID for each of the target nodes.
     target_ra_ids = []
@@ -258,7 +293,8 @@ def get_matching_resource_scenarios(client, resource_attr_id, scenario_id, scena
                 target_ra_ids.append(ra.id)
                 break
         else:
-            raise Exception("Unable to find attribute {} on node {}".format(source_attr_id, target_node.name))
+            raise Exception(f"Unable to find attribute {source_attr_id} on "+
+                            f"node { target_node.name}")
 
     #Now that we have the RA IDS and scenario IDS, find the RSs from each scenario
     target_rs = []
@@ -270,7 +306,9 @@ def get_matching_resource_scenarios(client, resource_attr_id, scenario_id, scena
         try:
             target_rs_i = client.get_resource_scenario(target_ra_id, target_scenario_id)
         except HydraError:
-            raise Exception("Scenario {0} in network {1} does not have data for attribute {2}".format(target_scenario_id, target_network_id, source_attr_id))
+            raise Exception(f"Scenario {target_scenario_id} in network"+
+                            f" {target_network_id} does not have data for"+
+                            f" attribute {source_attr_id}")
 
         target_rs_j = JSONObject(target_rs_i)
 
@@ -280,7 +318,8 @@ def get_matching_resource_scenarios(client, resource_attr_id, scenario_id, scena
 
 def extract_dataframes(rs_list):
     """
-        Given a list of resource scenarios, extract the dataframe value from the dataset within the RS.
+        Given a list of resource scenarios, extract the dataframe value
+        from the dataset within the RS.
     """
 
     dataframes = []
@@ -307,8 +346,8 @@ def extract_dataframes(rs_list):
 
 def combine_dataframes(dataframes):
     """
-        Take a list of pandas dataframes with the same index and combine them into a single multi-column
-        dataframe.
+        Take a list of pandas dataframes with the same index and combine
+        them into a single multi-column dataframe.
     """
     #merge the datframes, assuming they have the same inndex (axis=1 does that)
     concat_df = pandas.concat(dataframes, axis=1)
@@ -342,17 +381,22 @@ def assemble_dataframes(client, resource_attribute_ids, scenario_id, source_scen
     """
 
     assembled_dataframes = []
-    log.info("Retrieving data for resource attributes %s into %s ", resource_attribute_ids, source_scenario_ids)
+
+    log.info("Retrieving data for resource attributes %s into %s ",
+        resource_attribute_ids,
+        source_scenario_ids)
+
     for resource_attribute_id in resource_attribute_ids:
         matching_rs_list = get_matching_resource_scenarios(client,
-                                                       resource_attribute_id,
-                                                       scenario_id,
-                                                       source_scenario_ids)
+                                                           resource_attribute_id,
+                                                           scenario_id,
+                                                           source_scenario_ids)
 
         log.info("[RA %s] [Scenario IDS %s] [RS IDs %s]",
-                                                    resource_attribute_id,
-                                                    source_scenario_ids,
-                                                    resource_attribute_id)
+            resource_attribute_id,
+            source_scenario_ids,
+            resource_attribute_id)
+
         dataframes = extract_dataframes(matching_rs_list)
 
         combined_dataframe = combine_dataframes(dataframes)
@@ -362,4 +406,3 @@ def assemble_dataframes(client, resource_attribute_ids, scenario_id, source_scen
         assembled_dataframes.append(combined_dataframe)
 
     return assembled_dataframes
-

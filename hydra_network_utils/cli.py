@@ -189,7 +189,7 @@ def apply_layouts(obj, filename, network_id, user_id):
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('--column', type=str, default=None)
 @click.option('--sheet-name', type=str, default=0)
-@click.option('--index-col', type=str, default=None)
+@click.option('--index-col', type=str, default=0)
 @click.option('--data-type', type=str, default='PYWR_DATAFRAME')
 @click.option('--create-new/--no-create-new', default=False)
 @click.option('-n', '--network-id', type=int, default=None)
@@ -270,7 +270,7 @@ def assemble_dataframes(obj, resource_attribute_ids, scenario_id, source_scenari
     client = get_logged_in_client(obj, user_id=user_id)
 
     data.assemble_dataframes(client, resource_attribute_ids, scenario_id, source_scenario_ids)
-    
+
 @cli.command()
 @click.pass_obj
 @click.argument('docker-image', type=str)
@@ -279,4 +279,3 @@ def register(obj, docker_image):
     plugins = make_plugins(cli, 'hydra-network-utils', docker_image=docker_image)
     app_name = docker_image.replace('/', '-').replace(':', '-')
     write_plugins(plugins, app_name)
-
