@@ -112,7 +112,7 @@ def import_network(obj, filename, project_id, name, user_id, node_template_type_
     client = get_logged_in_client(obj, user_id=user_id)
 
     nodes, projection = import_nodes_from_shapefile(filename, node_template_type_id,
-                                                    name_attribute=node_name_attribute)
+                                                    name_attributes=[node_name_attribute])
 
     if name is None:
         name, _ = os.path.splitext(os.path.basename(filename))
@@ -125,7 +125,7 @@ def import_network(obj, filename, project_id, name, user_id, node_template_type_
         "nodes": nodes,
         "layout": None,
         "scenarios": [],
-        "projection": 'EPSG:27700',
+        "projection": projection,
         "attributes": [],
         'types': [{'id': network_template_type_id}]
     }
@@ -192,17 +192,19 @@ def apply_layouts(obj, filename, network_id, user_id):
 @click.option('--index-col', type=str, default=0)
 @click.option('--data-type', type=str, default='PYWR_DATAFRAME')
 @click.option('--create-new/--no-create-new', default=False)
+@click.option('--overwrite/--no-overwrite', default=False)
 @click.option('-n', '--network-id', type=int, default=None)
 @click.option('-s', '--scenario-id', type=int, default=None)
 @click.option('-a', '--attribute-id', type=int, default=None)
 @click.option('-u', '--user-id', type=int, default=None)
-def import_dataframe_excel(obj, filename, column, sheet_name, index_col, data_type, create_new,
+def import_dataframe_excel(obj, filename, column, sheet_name, index_col, data_type,
+                           create_new, overwrite,
                            network_id, scenario_id, attribute_id, user_id):
     """Import dataframes from Excel."""
     client = get_logged_in_client(obj, user_id=user_id)
     dataframe = pandas.read_excel(filename, sheet_name=sheet_name, index_col=index_col, parse_dates=True)
     data.import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new,
-                     data_type=data_type)
+                     data_type=data_type, overwrite=overwrite)
 
 
 @hydra_app(category='network_utility', name='Import dataframes from CSV')
@@ -212,16 +214,25 @@ def import_dataframe_excel(obj, filename, column, sheet_name, index_col, data_ty
 @click.option('--column', type=str, default=None)
 @click.option('--index-col', type=str, default=None)
 @click.option('--create-new/--no-create-new', default=False)
+@click.option('--overwrite/--no-overwrite', default=False)
 @click.option('-n', '--network-id', type=int, default=None)
 @click.option('-s', '--scenario-id', type=int, default=None)
 @click.option('-a', '--attribute-id', type=int, default=None)
 @click.option('-u', '--user-id', type=int, default=None)
-def import_dataframe_csv(obj, filename, column, index_col, create_new,
-                         network_id, scenario_id, attribute_id, user_id):
+@click.option('-u', '--user-id', type=int, default=None)
+def import_dataframe_csv(obj, filename, column, index_col, create_new, overwrite,
+                         network_id, scenario_id, attribute_id, user_id, ):
     """Import dataframes from CSV."""
     client = get_logged_in_client(obj, user_id=user_id)
     dataframe = pandas.read_csv(filename, index_col=index_col, parse_dates=True)
-    data.import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column, create_new=create_new)
+    data.import_dataframe(client,
+                          dataframe,
+                          network_id,
+                          scenario_id,
+                          attribute_id,
+                          column,
+                          create_new=create_new,
+                          overwrite=overwrite)
 
 
 @hydra_app(category='network_utility', name='Export dataframes to Excel')

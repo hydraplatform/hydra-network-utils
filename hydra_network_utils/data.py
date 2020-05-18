@@ -38,93 +38,146 @@ def json_to_df(json_dataframe):
 
     return df
 
-def make_dataframe_dataset_value(existing_value, df, data_type, column=None, node_name=None):
+def make_dataframe_dataset_value(existing_value, df, data_type,
+                                 column=None, node_name=None, overwrite=False):
 
     #Turn the target dataframe's index into a string so it is comparable to
     #the index of the dataframe coming from existing_value
     df.index = df.index.astype(str)
 
+    #if it's not a dataframe, it's probably a series,
+    #so turn it into a dataframe
+    if not isinstance(df, pandas.DataFrame):
+        df = df.to_frame(name='0')
+
     if data_type.lower() == 'dataframe':
 
-        existing_df = json_to_df(existing_value)
+        if overwrite is False:
 
-        #if there's only one column, then ignore the column parameter and just
-        #use the existing one in the dataset
-        if len(existing_df.columns) == 1:
-            #If the incoming data has more or less rows than the existing
-            #dataframe, then the existing one must be reindexed
-            if len(df.index) != len(existing_df.index):
-                existing_df = existing_df.reindex(df.index)
 
-            existing_df[existing_df.columns[0]] = df
+            value = _update_dataframe(existing_value, df, column=column)
 
-        elif column is not None:
-
-            #If the incoming data has more or less rows than the existing
-            #dataframe, then the existing one must be reindexed
-            if len(df.index) != len(existing_df.index):
-                existing_df = existing_df.reindex(df.index)
-
-            existing_df[column] = df
         else:
-            existing_df = df
+            #Set the value directly (overwriting any existing value)
+            value = df.to_json(orient='columns')
 
-        # Embed data as strings of datetimes rather than timestamps.
-        existing_df.index = existing_df.index.astype(str)
-        value = existing_df.to_json(orient='columns')
     elif data_type.lower() == 'pywr_dataframe':
-        value = json.loads(existing_value)
 
-        if "data" in value:
-            #default to null in case the data in Hydra isn't a dataframe which
-            #can be updated, and needs to be overwritten
-            existing_df = None
-            try:
-                existing_df = json_to_df(json.dumps(value["data"]))
-            except Exception as e:
-                log.exception(e)
-                log.warning(f"Unable to convert {node_name} value to a dataframe."+
-                            " This value must already be a dataframe."+
-                            f"Error was {e}")
+        if overwrite is False:
 
-            if column is not None:
-                # Update the specified column of the existing dataframe
-                existing_df[column] = df
-            else:
-                #if it's not a dataframe, it's probably a series,
-                #so turn it into a dataframe
-                if not isinstance(df, pandas.DataFrame):
-                    df = df.to_frame(name='0')
-                if existing_df is None:
-                    existing_df = df
-                #if not column is specified, overwrite the dataframe.
-                #This can only be done if the existing dataframe has a single column,
-                #as otherwise we won't know which column to update
-                elif len(existing_df.columns) == 1:
-                    existing_df = df
-                else:
-                    raise Exception(f"Can't set value on node {node_name}. "+
-                                    "Existing value has more than one column."+
-                                    "Please specify which column to update with"+
-                                    " the --column argument")
-            # Embed data as strings of datetimes rather than timestamps.
-            existing_df.index = existing_df.index.astype(str)
-            value["data"] = json.loads(existing_df.to_json())
+            value = _update_pywr_dataframe(existing_value, df,
+                                           column=column,
+                                           node_name=node_name)
+
         else:
-            # Embed data as strings of datetimes rather than timestamps.
-            log.critical("Updating the value as a PYWR dataframe.")
             df.index = df.index.astype(str)
-            value["data"] = json.loads(df.to_json())
+            value = {
+                "type": "dataframeparameter",
+                "data": json.loads(df.to_json(orient='columns')),
+                "pandas_kwargs": {"parse_dates": True}
+            }
         value = json.dumps(value)
     else:
         raise NotImplementedError(f'Datatype "{data_type.upper()}" not supported.')
 
     return value
 
+def _update_pywr_dataframe(existing_value, new_df, column=None, node_name=None):
+    """
+        Update an existing pywr dataframe. A pywr dataframe is a dict containing
+        a 'data' entry, which is a json-representaion of a pandas dataframe.
+    """
+    value = json.loads(existing_value)
+
+    if "data" in value:
+        #default to null in case the data in Hydra isn't a dataframe which
+        #can be updated, and needs to be overwritten
+        existing_df = None
+        try:
+            existing_df = json_to_df(json.dumps(value["data"]))
+        except Exception as err:
+            log.warning(f"Unable to convert {node_name} value to a dataframe.\n"+
+                        " This value must already be a dataframe.\n"+
+                        f" Error was {err}\n")
+            raise
+
+        if column is not None:
+            # Update the specified column of the existing dataframe
+            existing_df[column] = new_df
+        else:
+
+            if existing_df is None:
+                existing_df = new_df
+            #if not column is specified, overwrite the dataframe.
+            #This can only be done if the existing dataframe has a single column,
+            #as otherwise we won't know which column to update
+            elif len(existing_df.columns) == 1:
+                existing_df = new_df
+            else:
+                raise Exception(f"Can't set value on node {node_name}. "+
+                                "Existing value has more than one column."+
+                                "Please specify which column to update with"+
+                                " the --column argument")
+        # Embed data as strings of datetimes rather than timestamps.
+        existing_df.index = existing_df.index.astype(str)
+        value["data"] = json.loads(existing_df.to_json())
+    else:
+        # Embed data as strings of datetimes rather than timestamps.
+        log.warning("Value on %s has no 'data' entry. Updating the value as a PYWR dataframe.", node_name)
+        new_df.index = new_df.index.astype(str)
+        value["data"] = json.loads(new_df.to_json())
+
+    return value
+
+def _update_dataframe(existing_value, new_df, column=None):
+    """
+        Update an existing dataframe (which is input as a JSON string)
+        with the data from a newe DF. The new DF may only contain a subset
+        of the columns in existing_value, in which case, only update the column
+        specified
+    """
+
+    #Try to update an existing value.
+    #if there's only one column, then ignore the column parameter and just
+    #use the existing one in the dataset
+    existing_df = json_to_df(existing_value)
+    if len(existing_df.columns) == 1:
+        #If the incoming data has more or less rows than the existing
+        #dataframe, then the existing one must be reindexed
+        if len(new_df.index) != len(existing_df.index):
+            existing_df = existing_df.reindex(new_df.index)
+        existing_df[existing_df.columns[0]] = new_df
+    elif column is not None:
+        #If the incoming data has more or less rows than the existing
+        #dataframe, then the existing one must be reindexed
+        if len(new_df.index) != len(existing_df.index):
+            existing_df = existing_df.reindex(new_df.index)
+        existing_df[column] = new_df
+    else:
+        existing_df = new_df
+
+    # Embed data as strings of datetimes rather than timestamps.
+    existing_df.index = existing_df.index.astype(str)
+    value = existing_df.to_json(orient='columns')
+
+    return value
 
 def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column=None,
-                     create_new=False, data_type='PYWR_DATAFRAME'):
-
+                     create_new=False, data_type='PYWR_DATAFRAME', overwrite=False):
+    """
+    args:
+        client: (JSONConnection): The hydra client object
+        dataframe (pandas dataframe): pandas dataframe read from excel
+        network_id (int): the network ID
+        scenario_id (int): THe scenario ID
+        attribute_id (int): The attribute ID to update.
+        column (string): The name of the specific colum to use. If None, uses all of them.
+        create_new (bool): default False : If an node attribute doesn't exist, create it.
+        data_type (ENUM (PYWR_DATAFRAME, DATAFRAME)): The data type the new dataset should be.
+        overwrite (bool): If true, it overwrites an existing valuye with the new one. If false
+                          it will try to update the existing value. The data type of the existing
+                          value must match that of the updating value
+    """
     # Find all the nodes in the network
 
     node_data = {}
@@ -143,15 +196,19 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
 
             dataset = resource_scenario['dataset']
 
-            if dataset['type'].lower() != data_type.lower():
-                raise ValueError(f'Node "{node_name}" datatset for attribute_id "{attribute_id}" must be'
+            if dataset['type'].lower() != data_type.lower() and overwrite == False:
+                raise ValueError(f'Node "{node_name}" datatset for attribute_id'
+                                 f' {attribute_id}" must be'
                                  f' type "{dataset["type"]}", not type "{data_type.upper()}".')
 
             dataset['value'] = make_dataframe_dataset_value(dataset['value'],
                                                             dataframe[node_name],
                                                             data_type,
                                                             column,
-                                                            node_name)
+                                                            node_name,
+                                                            overwrite=overwrite)
+            #update the data type if necessary
+            dataset['type'] = dataset['type'] if overwrite is False else data_type
 
             node_data[node_name] = {
                 'node_id': node['id'],
@@ -187,7 +244,8 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
                                                          df,
                                                          data_type,
                                                          column,
-                                                         node_name)
+                                                         node_name,
+                                                         overwrite=overwrite)
 
                 dataset = Dataset({
                     'name': "data",
