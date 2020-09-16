@@ -33,8 +33,10 @@ def json_to_df(json_dataframe):
     #set the column ordering as per the incoming json data
     df = df[ordered_cols]
 
-    #reindex the dataframe to have the correct order
-    df = df.reindex(ordered_index)
+    #reindex the dataframe to be properly ordered but only if it's not a timeseries
+    if not isinstance(df.index, pandas.DatetimeIndex):
+        #reindex the dataframe to have the correct order
+        df = df.reindex(ordered_index)
 
     return df
 
@@ -386,6 +388,7 @@ def extract_dataframes(rs_list):
         if dataset.type.lower() != 'dataframe':
             raise Exception("Value in scenario {} isn't a dataframe".format(rs.scenario_id))
         try:
+            log.info(dataset.value)
             pandas_df = json_to_df(dataset.value)
         except:
             raise Exception("Unable to read dataframe from scenario {0}".format(rs.scenario_id))
