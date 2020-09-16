@@ -34,9 +34,9 @@ def json_to_df(json_dataframe):
     df = df[ordered_cols]
 
     #reindex the dataframe to be properly ordered but only if it's not a timeseries
-    if not isinstance(df.index, pandas.DatetimeIndex):
-        #reindex the dataframe to have the correct order
-        df = df.reindex(ordered_index)
+#    if not isinstance(df.index, pandas.DatetimeIndex):
+#        #reindex the dataframe to have the correct order
+#        df = df.reindex(ordered_index)
 
     return df
 
