@@ -286,6 +286,71 @@ def assemble_dataframes(obj, resource_attribute_ids, scenario_id, source_scenari
 
     data.assemble_dataframes(client, resource_attribute_ids, scenario_id, source_scenario_ids)
 
+@hydra_app(category='network_utility', name='Combine dataframes from multiple networks at once')
+@cli.command(name='un-hide-nodes')
+@click.pass_obj
+@click.option('-n', '--network-id', type=int, default=None)
+@click.option('--name', type=str)
+@click.option('-u', '--user-id', type=int, default=None)
+def un_hide_nodes(obj, network_id, name, user_id):
+    """
+        Remove the specified flag from all nodes in a network
+    """
+    client = get_logged_in_client(obj, user_id=user_id)
+
+    net = client.get_network(network_id)
+
+    label = name
+
+    for node in net.nodes:
+        print(node.layout)
+        if node.layout is None:
+            continue
+        layout = node.layout
+        if isinstance(layout, str):
+            layout = json.loads(layout)
+        if layout.get(label) is None:
+            continue
+
+        del(layout[name])
+        node['layout'] = layout
+        print(f"Layout changed on node {node.name} ({node.id})")
+        client.update_node(node)
+        print(f"Node {node.name} ({node.id}) Updated.")
+
+@hydra_app(category='network_utility', name='Set a the hidden flag on all the types in a template')
+@cli.command(name='unset-type-layout')
+@click.pass_obj
+@click.option('-t', '--template-id', type=int, default=None)
+@click.option('--name', type=str)
+@click.option('-u', '--user-id', type=int, default=None)
+def unset_type_layout(obj, template_id, name, user_id):
+    """
+        Remove the specified flag from all types in a template
+    """
+    client = get_logged_in_client(obj, user_id=user_id)
+
+
+    template = client.get_template(template_id)
+
+    label = name
+
+    for tt in template.templatetypes:
+        print(tt.layout)
+        if tt.layout is None:
+            continue
+        layout = tt.layout
+        if isinstance(layout, str):
+            layout = json.loads(layout)
+        if layout.get(label) is None:
+            continue
+
+        del(layout[label])
+        tt['layout'] = layout
+        print(f"Layout changed on tt {tt.name} ({tt.id})")
+        client.update_templatetype(tt)
+        print(f"tt {tt.name} ({tt.id}) Updated.")
+
 @cli.command()
 @click.pass_obj
 @click.argument('docker-image', type=str)
