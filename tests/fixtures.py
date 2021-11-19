@@ -4,7 +4,7 @@ import hydra_base
 
 from hydra_base.db import DeclarativeBase as _db
 from hydra_base.util.hdb import create_default_users_and_perms, make_root_user, create_default_units_and_dimensions
-from hydra_base.util import testing as util
+from hydra_base.util import testing
 
 from hydra_client.connection import JSONConnection
 
@@ -64,7 +64,7 @@ def db(engine, request):
 
 
 @pytest.fixture(scope='function')
-def session(db, engine, request):
+def session(client, db, engine, request):
     """Creates a new database session for a test."""
 
     db.metadata.bind = engine
@@ -93,16 +93,14 @@ def session(db, engine, request):
     create_default_units_and_dimensions()
 
     pytest.root_user_id = root_user_id
-
-    # Add some users
-    pytest.user_a = util.create_user("UserA")
-    pytest.user_b = util.create_user("UserB")
-    pytest.user_c = util.create_user("UserC", role='developer')
-
-    yield session
+    client.testutils = testing.TestUtil(client)
+    pytest.user_a = client.testutils.create_user("UserA")
+    pytest.user_b = client.testutils.create_user("UserB")
+    pytest.user_c = client.testutils.create_user("UserC", role='developer')
 
     # Tear down the session
-
+    #???
+    hydra_base.db.close_session()
     # First make sure everything can be and is committed.
     try:
         session.commit()
@@ -113,19 +111,23 @@ def session(db, engine, request):
 
 
 @pytest.fixture()
-def networkmaker():
+def networkmaker(client):
     class NetworkMaker:
+        def __init__(self, client):
+            self.client = client
         def create(self, project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):
-            return util.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection)
+            return self.client.testutils.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection)
     return NetworkMaker()
 
 
 @pytest.fixture()
-def projectmaker():
+def projectmaker(client):
     class ProjectMaker:
+        def __init__(self, client):
+            self.client = client
         def create(self, name=None, share=True):
             if name is None:
                 name = 'Project %s' % (datetime.datetime.now())
-            return util.create_project(name=name, share=share)
+            return self.client.testutils.create_project(name=name, share=share)
 
     return ProjectMaker()

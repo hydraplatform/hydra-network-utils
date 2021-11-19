@@ -9,6 +9,7 @@ import pandas
 import re
 from .gis import import_nodes_from_shapefile, import_links_from_shapefile
 from . import data
+from . import topology
 
 UPLOAD_DIR = config.get('plugin', 'upload_dir', '/tmp/uploads')
 UPLOAD_DIR = config.get('plugin', 'output_dir', '/tmp/uploads')
@@ -133,55 +134,34 @@ def import_network(obj, filename, project_id, name, user_id, node_template_type_
     client.add_network(network)
 
 
-@hydra_app(category='network_utility', name='Apply layouts')
+@hydra_app(category='network_utility', name='Apply Coordinates')
+@cli.command(name='apply-coordinates')
+@click.pass_obj
+@click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
+@click.option('-n', '--network-id', type=int, default=None)
+@click.option('-u', '--user-id', type=int, default=None)
+def apply_coordinates(obj, filename, network_id, user_id):
+    """Apply layouts from JSON file to network."""
+    client = get_logged_in_client(obj, user_id=user_id)
+
+    topology.apply_coordinates(client, filename, network_id)
+
+    print("Done applying coordinates")
+
+@hydra_app(category='network_utility', name='Apply Layouts')
 @cli.command(name='apply-layouts')
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('-n', '--network-id', type=int, default=None)
 @click.option('-u', '--user-id', type=int, default=None)
 def apply_layouts(obj, filename, network_id, user_id):
-    """Apply layouts from JSON file to network."""
+    """Take a CSV file containing 3 columns: Name, Lat, Long and scan through the network's nodes
+        to pick out any matching node names. If it finds one, set the x to lat and the y to long
+    """
     client = get_logged_in_client(obj, user_id=user_id)
 
-    #filename = os.path.basename(filename)
-    #fn = os.path.join(UPLOAD_DIR, filename)
-    fn = filename
 
-    # Open the layouts
-    with open(fn) as fh:
-        layouts = json.load(fh)
-
-    nodes = client.get_nodes(network_id)
-    node_ids = {n['name']: n['id'] for n in nodes}
-
-    links = client.get_links(network_id)
-    link_ids = {l['name']: l['id'] for l in links}
-
-    node_layouts = []
-    for node_name, layout in layouts.get('nodes', {}).items():
-        node_id = node_ids[node_name]
-
-        node_layouts.append({
-            'id': node_id,
-            'layout': layout
-        })
-
-    link_layouts = []
-    for link_name, layout in layouts.get('links', {}).items():
-        link_id = link_ids[link_name]
-
-        link_layouts.append({
-            'id': link_id,
-            'layout': layout
-        })
-
-    if len(node_layouts) > 0:
-        client.update_nodes(node_layouts)
-    if len(link_layouts) > 0:
-        # TODO Missing `update_links` function in hydra-base: https://github.com/hydraplatform/hydra-base/issues/66
-        for link_layout in link_layouts:
-            client.update_link(link_layout)
-
+    topology.apply_layouts(client, filename, network_id)
 
 @hydra_app(category='network_utility', name='Import dataframes from Excel')
 @cli.command(name='import-dataframe-excel')
