@@ -133,6 +133,21 @@ def import_network(obj, filename, project_id, name, user_id, node_template_type_
 
     client.add_network(network)
 
+@hydra_app(category='network_utility', name='Export Coordinates')
+@cli.command(name='export-coordinates')
+@click.pass_obj
+@click.option('-n', '--network-id', type=int, default=None, multiple=True)
+@click.option('--data-dir', default='/tmp')
+@click.option('-u', '--user-id', type=int, default=None)
+def export_coordinates(obj, network_id, data_dir, user_id):
+    """Apply layouts from JSON file to network."""
+    client = get_logged_in_client(obj, user_id=user_id)
+
+    if not hasattr(network_id, '__iter__'):
+        network_id = [network_id]
+    topology.export_coordinates(client, network_id, data_dir)
+
+    print("Done exporting coordinates")
 
 @hydra_app(category='network_utility', name='Apply Coordinates')
 @cli.command(name='apply-coordinates')

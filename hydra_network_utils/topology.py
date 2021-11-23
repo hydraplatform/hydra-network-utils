@@ -1,5 +1,32 @@
-import pandas as pd 
+"""
+A library of functions relating to manipulating or storing the topology of hydra networks
+"""
+import os
+import pandas as pd
 import json
+
+def export_coordinates(client, network_ids, data_dir='/tmp'):
+    """
+        Extract the coordinates from a list of networks, put them into a dataframe
+        and export the dataframe to a csv, compatible with the apply_coordinates function
+    """
+
+    data = {}
+    for network_id in network_ids:
+        print(f"Getting nodes for network {network_id}")
+        nodes = client.get_nodes(network_id)
+        for node in nodes:
+            data[node.name] = {'Lat': node.y, 'Lon': node.x}
+
+    df = pd.DataFrame.from_dict(data).T.fillna(0)
+
+    df.index.name = 'Name'
+
+    output_filename = os.path.join(data_dir, 'node_coordinates.csv')
+
+    df.to_csv(output_filename)
+
+    print(f"Node coordinates written to {output_filename}")
 
 def apply_coordinates(client, filename, network_id):
     """
@@ -9,7 +36,7 @@ def apply_coordinates(client, filename, network_id):
     if filename.endswith('csv'):
         coordinate_df = pd.read_csv(filename)
     elif filename.endswith('xlsx'):
-        coordinatedf = pd.read_excel(filename)
+        coordinate_df = pd.read_excel(filename)
     else:
         raise Exception("Unrecognised file type. It should be .csv or .xlsx")
 
@@ -75,5 +102,3 @@ def apply_layouts(client, filename, network_id):
         # TODO Missing `update_links` function in hydra-base: https://github.com/hydraplatform/hydra-base/issues/66
         for link_layout in link_layouts:
             client.update_link(link_layout)
-
-
