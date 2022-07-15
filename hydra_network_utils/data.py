@@ -185,7 +185,10 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
     node_data = {}
     for node_name in dataframe:
         # An exception is raised by hydra if the node name does not exist.
-        node = client.get_node_by_name(network_id, node_name)
+        try:
+            node = client.get_node_by_name(network_id, node_name)
+        except Exception as e:
+            log.warning(e)
 
         # Fetch the node's data
         resource_scenarios = client.get_resource_data('NODE', node['id'], scenario_id)
