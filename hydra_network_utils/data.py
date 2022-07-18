@@ -165,7 +165,7 @@ def _update_dataframe(existing_value, new_df, column=None):
     return value
 
 def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column=None,
-                     create_new=False, data_type='PYWR_DATAFRAME', overwrite=False):
+                     create_new=False, data_type='DATAFRAME', overwrite=False):
     """
     args:
         client: (JSONConnection): The hydra client object
@@ -181,6 +181,12 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
                           value must match that of the updating value
     """
     # Find all the nodes in the network
+
+    scenario = client.get_scenario(scenario_id, include_data=False)
+    network_id = scenario.network_id
+
+
+    attribute = client.get_attribute_by_id(attribute_id)
 
     node_data = {}
     for node_name in dataframe:
@@ -225,7 +231,7 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
             if not create_new:
                 # No resource attribute found!
                 raise ValueError(f'Node "{node_name}" does not contain a resource attribute '
-                                 f'for the attribute "{attribute_id}".')
+                                 f'for the attribute "{attribute["name"]}".')
             else:
                 resource_attribute = client.add_resource_attribute('NODE',
                                                                    node['id'],

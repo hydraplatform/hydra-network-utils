@@ -241,7 +241,7 @@ def apply_layouts(obj, filename, network_id, user_id):
 @click.option('--column', type=str, default=None)
 @click.option('--sheet-name', type=str, default=0)
 @click.option('--index-col', type=str, default=0)
-@click.option('--data-type', type=str, default='PYWR_DATAFRAME')
+@click.option('--data-type', type=str, default='DATAFRAME')
 @click.option('--create-new/--no-create-new', default=False)
 @click.option('--overwrite/--no-overwrite', default=False)
 @click.option('-n', '--network-id', type=int, default=None)
@@ -254,9 +254,16 @@ def import_dataframe_excel(obj, filename, column, sheet_name, index_col, data_ty
     """Import dataframes from Excel."""
 
     client = get_logged_in_client(obj, user_id=user_id)
+    
 
-    dataframe = pandas.read_excel(filename, sheet_name=sheet_name,
-                                  index_col=index_col, parse_dates=True)
+    if filename.endswith('csv'):
+        dataframe = pandas.read_csv(filename, index_col=index_col, parse_dates=True)
+    elif filename.endswith('xlsx') or filename.endswith('xls'):
+        dataframe = pandas.read_excel(filename, sheet_name=sheet_name, index_col=index_col, parse_dates=True)
+        if isinstance(dataframe, dict):
+            dataframe = list(dataframe.values())[0]
+    else:
+        raise Exception("Unrecognised file extention. Must be csv or xlsx.")
 
     data.import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, column,
                           create_new=create_new, data_type=data_type, overwrite=overwrite)
