@@ -45,6 +45,59 @@ def cli(obj, username, password, hostname, session):
     obj['session'] = session
 
 
+
+@hydra_app(category='network_utility', name='Merge Scenarios')
+@cli.command(name='merge-scenarios')
+@click.pass_obj
+@click.option('--source', type=int, default=None)
+@click.option('--target', type=int, default=None)
+@click.option('--allow-unmatched-names', default=False, is_flag=True)
+@click.option('--ignore-missing-attributes', default=False, is_flag=True)
+@click.option('-u', '--user-id', type=int, default=None)
+def merge_scenarios(obj, source, target, allow_unmatched_names, ignore_missing_attributes, user_id):
+    """
+    merge data from one scenario to another, for any node name and attribute
+    that matches
+    """
+    client = get_logged_in_client(obj, user_id=user_id)
+
+    match_all_names = allow_unmatched_names is not True
+    ignore_missing_attributes = ignore_missing_attributes is True
+
+    client.merge_scenarios(
+        source,
+        target,
+        match_all_names=match_all_names,
+        ignore_missing_attributes=ignore_missing_attributes)
+
+
+@hydra_app(category='network_utility', name='Set Link Layouts')
+@cli.command(name='set-link-layouts')
+@click.pass_obj
+def import_links(obj):
+    """
+    """
+    client = get_logged_in_client(obj, user_id=2)
+
+    with open("/home/stephen/git/models/wre/WRE_Simulator/submodels/ruthamford/advanced/Ruthamford.json") as f:
+        data = json.load(f)
+
+    ruthamford_nodes = []
+    for n in data['nodes']:
+        ruthamford_nodes.append(n['name'])
+
+    net = client.get_network(5026)
+    ruthamford_node_ids = []
+    for n in net.nodes:
+        if n.name in ruthamford_nodes:
+            ruthamford_node_ids.append(n.id)
+    ruthamford_links = []
+    for l in net.links:
+        if l.node_1_id in ruthamford_node_ids or l.node_2_id in ruthamford_node_ids:
+            l.layout = {'color': 'red'}
+            ruthamford_links.append(l)
+    client.update_links(ruthamford_links)
+
 @hydra_app(category='network_utility', name='Import links from GIS')
 @cli.command(name='import-links')
 @click.pass_obj
@@ -153,11 +206,14 @@ def export_coordinates(obj, network_id, data_dir, user_id):
 @cli.command(name='apply-coordinates')
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
-@click.option('-n', '--network-id', type=int, default=None)
+@click.option('-n', '--network-id', type=int, default=None, multiple=True)
 @click.option('-u', '--user-id', type=int, default=None)
 def apply_coordinates(obj, filename, network_id, user_id):
     """Apply layouts from JSON file to network."""
     client = get_logged_in_client(obj, user_id=user_id)
+
+    if not hasattr(network_id, '__iter__'):
+        network_id = [network_id]
 
     topology.apply_coordinates(client, filename, network_id)
 

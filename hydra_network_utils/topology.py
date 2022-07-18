@@ -16,7 +16,7 @@ def export_coordinates(client, network_ids, data_dir='/tmp'):
         print(f"Getting nodes for network {network_id}")
         nodes = client.get_nodes(network_id)
         for node in nodes:
-            data[node.name] = {'Lat': node.y, 'Lon': node.x}
+            data[node.name] = {'Lon': node.y, 'Lat': node.x}
 
     df = pd.DataFrame.from_dict(data).T.fillna(0)
 
@@ -28,7 +28,7 @@ def export_coordinates(client, network_ids, data_dir='/tmp'):
 
     print(f"Node coordinates written to {output_filename}")
 
-def apply_coordinates(client, filename, network_id):
+def apply_coordinates(client, filename, network_ids=None):
     """
         Apply coordinates specified in a file to the nodes in the specified network
     """
@@ -39,27 +39,27 @@ def apply_coordinates(client, filename, network_id):
         coordinate_df = pd.read_excel(filename)
     else:
         raise Exception("Unrecognised file type. It should be .csv or .xlsx")
+    for network_id in network_ids:
+        nodes = client.get_nodes(network_id)
+        node_dict = dict((n.name.lower(), n.id) for n in nodes)
 
-    nodes = client.get_nodes(network_id)
-    node_dict = dict((n.name.lower(), n.id) for n in nodes)
+        node_coordinates = []
 
-    node_coordinates = []
+        coordinate_df.columns = [c.lower() for c in coordinate_df.columns]
+        for row in coordinate_df.itertuples():
+            normalised_name = row.name.strip().lower()
+            if normalised_name in node_dict:
+                node_id = node_dict[normalised_name]
 
-    coordinate_df.columns = [c.lower() for c in coordinate_df.columns]
-    for row in coordinate_df.itertuples():
-        normalised_name = row.name.strip().lower()
-        if normalised_name in node_dict:
-            node_id = node_dict[normalised_name]
+                node_coordinates.append({
+                    'id': node_id,
+                    'x': row.lat,
+                    'y': row.lon
+                })
 
-            node_coordinates.append({
-                'id': node_id,
-                'x': row.lat,
-                'y': row.lon
-            })
-
-    if len(node_coordinates) > 0:
-        client.update_nodes(node_coordinates)
-    print("Coordinates applied to %s nodes"%len(node_coordinates))
+        if len(node_coordinates) > 0:
+            client.update_nodes(node_coordinates)
+        print("Coordinates applied to %s nodes"%len(node_coordinates))
 
 
 def apply_layouts(client, filename, network_id):
