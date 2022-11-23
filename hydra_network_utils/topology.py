@@ -5,6 +5,35 @@ import os
 import pandas as pd
 import json
 
+def copy_coordinates(client, from_network_id, to_network_id):
+    """
+        Copy node coordinates from one network to another
+    """
+    from_nodes = client.get_nodes(from_network_id)
+    to_nodes = client.get_nodes(to_network_id)
+
+    coordinate_map = {}
+    for from_node in from_nodes:
+        coordinate_map[from_node.name] = {
+            'x': from_node.x,
+            'y': from_node.y
+        }
+    node_coordinates = []
+    for to_node in to_nodes:
+        if to_node.name in coordinate_map:
+            node_coordinates.append({
+                'id': to_node.id,
+                'x': coordinate_map[to_node.name]['x'],
+                'y': coordinate_map[to_node.name]['y']
+            })
+
+    if len(node_coordinates) > 0:
+        client.update_nodes(node_coordinates)
+
+    print("Coordinates applied to %s nodes"%len(node_coordinates))
+
+
+
 def export_coordinates(client, network_ids, data_dir='/tmp'):
     """
         Extract the coordinates from a list of networks, put them into a dataframe

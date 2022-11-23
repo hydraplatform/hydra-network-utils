@@ -219,6 +219,21 @@ def apply_coordinates(obj, filename, network_id, user_id):
 
     print("Done applying coordinates")
 
+@hydra_app(category='network_utility', name='Apply Coordinates')
+@cli.command(name='copy-coordinates')
+@click.pass_obj
+@click.option('-n1', '--from-network-id', type=int, default=None, multiple=True)
+@click.option('-n2', '--to-network-id', type=int, default=None, multiple=True)
+@click.option('-u', '--user-id', type=int, default=None)
+def apply_coordinates(obj, from_network_id, to_network_id, user_id):
+    """Apply layouts from JSON file to network."""
+    client = get_logged_in_client(obj, user_id=user_id)
+
+    topology.copy_coordinates(client, from_network_id, to_network_id)
+
+    print("Done copying coordinates")
+
+
 @hydra_app(category='network_utility', name='Apply Layouts')
 @cli.command(name='apply-layouts')
 @click.pass_obj
@@ -254,7 +269,7 @@ def import_dataframe_excel(obj, filename, column, sheet_name, index_col, data_ty
     """Import dataframes from Excel."""
 
     client = get_logged_in_client(obj, user_id=user_id)
-    
+
 
     if filename.endswith('csv'):
         dataframe = pandas.read_csv(filename, index_col=index_col, parse_dates=True)
