@@ -47,7 +47,9 @@ def cli(obj, username, password, hostname, session):
 
 
 @hydra_app(category='network_utility', name='Merge Scenarios')
-@cli.command(name='merge-scenarios')
+@cli.command(name='merge-scenarios', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 @click.option('--source', type=int, default=None)
 @click.option('--target', type=int, default=None)
@@ -72,7 +74,9 @@ def merge_scenarios(obj, source, target, allow_unmatched_names, ignore_missing_a
 
 
 @hydra_app(category='network_utility', name='Set Link Layouts')
-@cli.command(name='set-link-layouts')
+@cli.command(name='set-link-layouts', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 def import_links(obj):
     """
@@ -99,7 +103,9 @@ def import_links(obj):
     client.update_links(ruthamford_links)
 
 @hydra_app(category='network_utility', name='Import links from GIS')
-@cli.command(name='import-links')
+@cli.command(name='import-links', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('-n', '--network-id', type=int, default=None)
@@ -122,7 +128,9 @@ def import_links(obj, filename, network_id, user_id, node_template_type_id, link
 
 
 @hydra_app(category='network_utility', name='Import nodes from GIS')
-@cli.command(name='import-nodes')
+@cli.command(name='import-nodes', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('-n', '--network-id', type=int, default=None)
@@ -145,7 +153,9 @@ def import_nodes(obj, filename, network_id, user_id, node_template_type_id, node
 
 
 @hydra_app(category='import', name='Create network from GIS.')
-@cli.command(name='create-network')
+@cli.command(name='create-network', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('-p', '--project-id', type=int)
@@ -187,7 +197,9 @@ def import_network(obj, filename, project_id, name, user_id, node_template_type_
     client.add_network(network)
 
 @hydra_app(category='network_utility', name='Export Coordinates')
-@cli.command(name='export-coordinates')
+@cli.command(name='export-coordinates', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 @click.option('-n', '--network-id', type=int, default=None, multiple=True)
 @click.option('--data-dir', default='/tmp')
@@ -203,7 +215,9 @@ def export_coordinates(obj, network_id, data_dir, user_id):
     print("Done exporting coordinates")
 
 @hydra_app(category='network_utility', name='Apply Coordinates')
-@cli.command(name='apply-coordinates')
+@cli.command(name='apply-coordinates', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('-n', '--network-id', type=int, default=None, multiple=True)
@@ -220,12 +234,14 @@ def apply_coordinates(obj, filename, network_id, user_id):
     print("Done applying coordinates")
 
 @hydra_app(category='network_utility', name='Apply Coordinates')
-@cli.command(name='copy-coordinates')
+@cli.command(name='copy-coordinates', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 @click.option('-n1', '--from-network-id', type=int, default=None, multiple=True)
 @click.option('-n2', '--to-network-id', type=int, default=None, multiple=True)
 @click.option('-u', '--user-id', type=int, default=None)
-def apply_coordinates(obj, from_network_id, to_network_id, user_id):
+def copy_coordinates(obj, from_network_id, to_network_id, user_id):
     """Apply layouts from JSON file to network."""
     client = get_logged_in_client(obj, user_id=user_id)
 
@@ -234,8 +250,26 @@ def apply_coordinates(obj, from_network_id, to_network_id, user_id):
     print("Done copying coordinates")
 
 
+@hydra_app(category='network_utility', name='Copy Link Layouts')
+@cli.command(name='copy-link-layouts', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
+@click.pass_obj
+@click.option('-n1', '--from-network-id', type=int, default=None, multiple=True)
+@click.option('-n2', '--to-network-id', type=int, default=None, multiple=True)
+@click.option('-u', '--user-id', type=int, default=None)
+def copy_link_layouts(obj, from_network_id, to_network_id, user_id):
+    """Copy link layouts from one hydra network to another."""
+    client = get_logged_in_client(obj, user_id=user_id)
+
+    topology.copy_link_layouts(client, from_network_id, to_network_id)
+
+    print("Done copying link layouts")
+
 @hydra_app(category='network_utility', name='Apply Layouts')
-@cli.command(name='apply-layouts')
+@cli.command(name='apply-layouts', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('-n', '--network-id', type=int, default=None)
@@ -250,7 +284,9 @@ def apply_layouts(obj, filename, network_id, user_id):
     topology.apply_layouts(client, filename, network_id)
 
 @hydra_app(category='network_utility', name='Import dataframes from Excel')
-@cli.command(name='import-dataframe-excel')
+@cli.command(name='import-dataframe-excel', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('--column', type=str, default=None)
@@ -285,7 +321,9 @@ def import_dataframe_excel(obj, filename, column, sheet_name, index_col, data_ty
 
 
 @hydra_app(category='network_utility', name='Import dataframes from CSV')
-@cli.command(name='import-dataframe-csv')
+@cli.command(name='import-dataframe-csv', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 @click.option('--filename', type=click.Path(file_okay=True, dir_okay=False))
 @click.option('--column', type=str, default=None)
@@ -313,7 +351,9 @@ def import_dataframe_csv(obj, filename, column, index_col, create_new, overwrite
 
 
 @hydra_app(category='network_utility', name='Export dataframes to Excel')
-@cli.command(name='export-dataframes-excel')
+@cli.command(name='export-dataframes-excel', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 @click.option('-n', '--network-id', type=int, default=None)
 @click.option('-s', '--scenario-id', type=int, default=None)
@@ -343,7 +383,9 @@ def export_dataframes_excel(obj, network_id, scenario_id, attribute_id, user_id,
     writer.save()
 
 @hydra_app(category='network_utility', name='Combine dataframes from multiple networks at once')
-@cli.command(name='assemble-dataframes')
+@cli.command(name='assemble-dataframes', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 @click.option('-a', '--resource-attribute-ids', type=int, default=None, multiple=True)
 @click.option('-s', '--scenario-id', type=int, default=None)
@@ -360,7 +402,10 @@ def assemble_dataframes(obj, resource_attribute_ids, scenario_id, source_scenari
     data.assemble_dataframes(client, resource_attribute_ids, scenario_id, source_scenario_ids)
 
 @hydra_app(category='network_utility', name='Combine dataframes from multiple networks at once')
-@cli.command(name='un-hide-nodes')
+@cli.command(name='un-hide-nodes', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
+
 @click.pass_obj
 @click.option('-n', '--network-id', type=int, default=None)
 @click.option('--name', type=str)
@@ -392,7 +437,9 @@ def un_hide_nodes(obj, network_id, name, user_id):
         print(f"Node {node.name} ({node.id}) Updated.")
 
 @hydra_app(category='network_utility', name='Set a the hidden flag on all the types in a template')
-@cli.command(name='unset-type-layout')
+@cli.command(name='unset-type-layout', context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True))
 @click.pass_obj
 @click.option('-t', '--template-id', type=int, default=None)
 @click.option('--name', type=str)
