@@ -189,12 +189,15 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
     attribute = client.get_attribute_by_id(attribute_id)
 
     node_data = {}
+
     for node_name in dataframe:
         # An exception is raised by hydra if the node name does not exist.
         try:
             node = client.get_node_by_name(network_id, node_name)
         except Exception as e:
+            log.exception(e)
             log.warning(e)
+            continue
 
         # Fetch the node's data
         resource_scenarios = client.get_resource_data('NODE', node['id'], scenario_id)
@@ -274,7 +277,11 @@ def import_dataframe(client, dataframe, network_id, scenario_id, attribute_id, c
 
     # Now update the database with the new data
     for node_name, data in node_data.items():
-        client.add_data_to_attribute(scenario_id, data['resource_attribute_id'], data['dataset'])
+        try:
+            client.add_data_to_attribute(scenario_id, data['resource_attribute_id'], data['dataset'])
+        except:
+            print("ERROR ADDING DATA")
+
 
 
 def export_dataframes(client, network_id, scenario_id, attribute_ids=None):

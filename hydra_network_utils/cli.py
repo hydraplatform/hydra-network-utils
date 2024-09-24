@@ -307,6 +307,11 @@ def import_dataframe_excel(obj, filename, column, sheet_name, index_col, data_ty
     client = get_logged_in_client(obj, user_id=user_id)
 
 
+    try:
+        index_col = int(index_col)
+    except:
+        pass
+
     if filename.endswith('csv'):
         dataframe = pandas.read_csv(filename, index_col=index_col, parse_dates=True)
     elif filename.endswith('xlsx') or filename.endswith('xls'):
