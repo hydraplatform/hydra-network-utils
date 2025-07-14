@@ -11,9 +11,6 @@ from .gis import import_nodes_from_shapefile, import_links_from_shapefile
 from . import data
 from . import topology
 
-UPLOAD_DIR = config.get('plugin', 'upload_dir', '/tmp/uploads')
-UPLOAD_DIR = config.get('plugin', 'output_dir', '/tmp/uploads')
-
 def get_client(hostname, **kwargs):
     return JSONConnection(app_name='Pywr GIS App', db_url=hostname, **kwargs)
 
