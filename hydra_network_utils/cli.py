@@ -2,7 +2,7 @@ import click
 import os
 from hydra_base import config
 from hydra_client.connection import JSONConnection
-from hydra_client.click import hydra_app, make_plugins, write_plugins
+from hydra_client.click import hydra_app
 import json
 from collections import defaultdict
 import pandas
@@ -475,12 +475,3 @@ def unset_type_layout(obj, template_id, name, user_id):
         print(f"Layout changed on tt {tt.name} ({tt.id})")
         client.update_templatetype(tt)
         print(f"tt {tt.name} ({tt.id}) Updated.")
-
-@cli.command()
-@click.pass_obj
-@click.argument('docker-image', type=str)
-def register(obj, docker_image):
-    """ Register the app with the Hydra installation. """
-    plugins = make_plugins(cli, 'hydra-network-utils', docker_image=docker_image)
-    app_name = docker_image.replace('/', '-').replace(':', '-')
-    write_plugins(plugins, app_name)
