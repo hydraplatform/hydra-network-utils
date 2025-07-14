@@ -33,6 +33,32 @@ def copy_coordinates(client, from_network_id, to_network_id):
     print("Coordinates applied to %s nodes"%len(node_coordinates))
 
 
+def copy_link_layouts(client, from_network_id, to_network_id):
+    """
+        Copy link layouts from one network to another
+    """
+    from_links = client.get_links(from_network_id)
+    to_links = client.get_links(to_network_id)
+
+    layout_map = {}
+    for from_link in from_links:
+        layout_map[from_link.name] = {
+            'layout': from_link.layout
+        }
+    link_layouts = []
+    for to_link in to_links:
+        if to_link.name in layout_map:
+            link_layouts.append({
+                'id': to_link.id,
+                'layout': layout_map[to_link.name]['layout']
+            })
+
+    if len(link_layouts) > 0:
+        client.update_links(link_layouts)
+
+    print("Copied layouts to %s links"%len(link_layouts))
+
+
 
 def export_coordinates(client, network_ids, data_dir='/tmp'):
     """
@@ -93,8 +119,6 @@ def apply_coordinates(client, filename, network_ids=None):
 
 def apply_layouts(client, filename, network_id):
 
-    #filename = os.path.basename(filename)
-    #fn = os.path.join(UPLOAD_DIR, filename)
     fn = filename
 
     # Open the layoutso
@@ -102,14 +126,20 @@ def apply_layouts(client, filename, network_id):
         layouts = json.load(fh)
 
     nodes = client.get_nodes(network_id)
-    node_ids = {n['name']: n['id'] for n in nodes}
+    node_ids = {n['name'].lower(): n['id'] for n in nodes}
 
     links = client.get_links(network_id)
-    link_ids = {l['name']: l['id'] for l in links}
+    link_ids = {l['name'].lower(): l['id'] for l in links}
 
     node_layouts = []
     for node_name, layout in layouts.get('nodes', {}).items():
-        node_id = node_ids[node_name]
+        node_id = node_ids.get(node_name)
+
+        if node_id is None:
+            print(f"Ignoring node {node_name}")
+            continue
+
+        layout['size'] = "medium"
 
         node_layouts.append({
             'id': node_id,
@@ -118,13 +148,16 @@ def apply_layouts(client, filename, network_id):
 
     link_layouts = []
     for link_name, layout in layouts.get('links', {}).items():
-        link_id = link_ids[link_name]
+        link_id = link_ids.get(link_name)
+
+        if link_id is None:
+            print(f"Ignoring link {link_name}")
+            continue
 
         link_layouts.append({
             'id': link_id,
-            'layout': layout
+            'layout': {'geojson': layout}
         })
-
     if len(node_layouts) > 0:
         client.update_nodes(node_layouts)
     if len(link_layouts) > 0:
